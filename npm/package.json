@@ -1,0 +1,26 @@
+{
+  "name": "@triangulum/generate-message-proxy",
+  "version": "1.0.0-alpha.1",
+  "description": "Generate typescript code for asynchronouse execution of code via postMessage.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grant-wilson/generate-message-proxy.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/grant-wilson/generate-message-proxy/issues"
+  },
+  "main": "./script/index.js",
+  "module": "./esm/index.js",
+  "exports": {
+    ".": {
+      "import": "./esm/index.js",
+      "require": "./script/index.js"
+    }
+  },
+  "scripts": {
+    "publish": "npm publish --access public --tag next"
+  },
+  "public": true,
+  "_generatedBy": "dnt@dev"
+}
