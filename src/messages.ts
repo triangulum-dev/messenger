@@ -25,7 +25,7 @@ export type AsyncRequestMessage<T> = {
   data: T;
 };
 
-export function asyncRequestMessage<T>(
+export function requestMessage<T>(
   id: string | number,
   data: T,
 ): AsyncRequestMessage<T> {
@@ -36,7 +36,7 @@ export function asyncRequestMessage<T>(
   };
 }
 
-export type AsyncResolveMessage<T> = {
+export type ResolveMessage<T> = {
   type: MessageType.Resolve;
   id: string | number;
   data: T;
@@ -45,7 +45,7 @@ export type AsyncResolveMessage<T> = {
 export function resolveMessage<T>(
   id: string | number,
   data: T,
-): AsyncResolveMessage<T> {
+): ResolveMessage<T> {
   return {
     type: MessageType.Resolve,
     id,
@@ -53,16 +53,16 @@ export function resolveMessage<T>(
   };
 }
 
-export type AsyncRejectMessage = {
+export type RejectMessage = {
   type: MessageType.Reject;
   id: string | number;
   error: unknown;
 };
 
-export function asyncRejectMessage(
+export function rejectMessage(
   id: string | number,
   error: unknown,
-): AsyncRejectMessage {
+): RejectMessage {
   return {
     type: MessageType.Reject,
     id,
@@ -71,5 +71,5 @@ export function asyncRejectMessage(
 }
 
 export type ResponseMessage<T> = 
-  | AsyncResolveMessage<T>
-  | AsyncRejectMessage;
+  | ResolveMessage<T>
+  | RejectMessage;

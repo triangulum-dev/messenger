@@ -1,6 +1,6 @@
 import { expect } from "@std/expect";
-import { MessengerClient } from "./client.ts";
-import { MessengerController } from "./index.ts";
+import { Client } from "./client.ts";
+import { Controller } from "./index.ts";
 import { releaseMicrotask } from "./utils.ts";
 
 Deno.test("Controller should connect and recieve client messages.", async () => {
@@ -8,12 +8,12 @@ Deno.test("Controller should connect and recieve client messages.", async () => 
 
   const channel = new MessageChannel();
 
-  const controller = new MessengerController(
+  const controller = new Controller(
     id,
     channel.port2,
   );
 
-  const client = new MessengerClient(
+  const client = new Client(
     id,
     channel.port1,
   );

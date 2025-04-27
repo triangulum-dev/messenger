@@ -1,10 +1,45 @@
-import { ChannelConnection } from "./channel-connection.ts";
-import { asyncRequestMessage, MessageType } from "./messages.ts";
+import { Connection } from "./connection.ts";
+import { MessageType, requestMessage } from "./messages.ts";
 import type { ResponseMessage } from "./messages.ts";
-import type { MessageSource, MessageTarget } from "./model.ts";
+import type {
+  IsReadonly,
+  MessageSource,
+  MessageTarget,
+  Promisify,
+} from "./model.ts";
 import { addMessageEventListener, withResolvers } from "./utils.ts";
 
-export class MessengerClient {
+export type FunctionsOf<T extends object> = {
+  [K in keyof T as T[K] extends (...args: unknown[]) => unknown ? K : never]:
+    T[K] extends (...args: infer Args) => infer R
+      ? (...args: Args) => Promisify<R>
+      : never;
+};
+
+export type GettersOf<T extends object> = {
+  [
+    K in keyof T as T[K] extends (...args: unknown[]) => unknown ? never
+      : `get${Capitalize<string & K>}`
+  ]: () => Promise<T[K]>;
+};
+
+export type SettersOf<T extends object> = {
+  [
+    K in keyof T as T[K] extends (...args: unknown[]) => unknown ? never
+      : IsReadonly<T, K> extends true ? never
+      : `set${Capitalize<string & K>}`
+  ]: (value: T[K]) => Promise<void>;
+};
+
+export type ClientOf<T extends object> =
+  & FunctionsOf<T>
+  & GettersOf<T>
+  & SettersOf<T>
+  & {
+    close: () => void;
+  };
+
+export class Client {
   #id = 0;
 
   #port: MessagePort;
@@ -13,7 +48,7 @@ export class MessengerClient {
     readonly id: string,
     readonly target: MessageTarget & MessageSource,
   ) {
-    this.#port = ChannelConnection.connect(
+    this.#port = Connection.connect(
       this.id,
       this.target,
     );
@@ -45,7 +80,7 @@ export class MessengerClient {
     };
     addMessageEventListener(this.#port, onMessage);
     this.#port.postMessage(
-      asyncRequestMessage(id, message),
+      requestMessage(id, message),
     );
     promise.finally(() => {
       this.#port.removeEventListener("message", onMessage);
@@ -65,4 +100,29 @@ export class MessengerClient {
   close() {
     this.#port.close();
   }
+
+  static of<T extends object>(id: string, target: MessageTarget & MessageSource) {
+
+    const client = new Client(id, target);
+
+    return new Proxy<ClientOf<T>>(
+      {} as ClientOf<T>,
+      {
+        get: (target, prop) => {
+          if (prop === "close") {
+            return () => {
+              target.close();
+            };
+          }
+          if (typeof prop === "string") {
+            return (...args: unknown[]) => {
+              return client.send(prop, ...args);
+            };
+          }
+          return undefined;
+        },
+      },
+    );
+  }
+
 }

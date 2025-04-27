@@ -1,7 +1,7 @@
 import type { AsyncRequestMessage } from "./messages.ts";
-import { ChannelConnection } from "./channel-connection.ts";
+import { Connection } from "./connection.ts";
 import {
-  asyncRejectMessage,
+  rejectMessage,
   resolveMessage,
   MessageType,
 } from "./messages.ts";
@@ -13,22 +13,22 @@ import type {
 } from "./model.ts";
 import { addMessageEventListener } from "./utils.ts";
 
-export type MessengerControllerHandler<T extends Function = Function> = (
+export type ControllerHandler<T extends Function = Function> = (
   ...args: Parameters<T>
 ) => ReturnType<T>;
 
-export class MessengerController<T extends FunctionMap> {
+export class Controller<T extends FunctionMap> {
   #listenRef: ListenRef;
 
   #connections = new Map<MessagePort, (event: MessageEvent) => void>();
 
-  #callback?: MessengerControllerHandler;
+  #callback?: ControllerHandler;
 
   constructor(
     readonly id: string,
     readonly source: MessageSource,
   ) {
-    this.#listenRef = ChannelConnection.listen(
+    this.#listenRef = Connection.listen(
       this.id,
       this.source,
       this.#onConnect,
@@ -36,7 +36,7 @@ export class MessengerController<T extends FunctionMap> {
   }
 
   on<F extends T[keyof T]>(
-    handler: MessengerControllerHandler<F>,
+    handler: ControllerHandler<F>,
   ) {
     this.#callback = handler;
   }
@@ -69,7 +69,7 @@ export class MessengerController<T extends FunctionMap> {
         port.postMessage(resolveMessage(id, result));
       } catch (error) {
         try {
-          port.postMessage(asyncRejectMessage(id, error));
+          port.postMessage(rejectMessage(id, error));
         } catch (e) {
           console.error("Error sending error message:", e);
         }

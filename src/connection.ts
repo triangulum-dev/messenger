@@ -3,7 +3,7 @@ import { connectMessage, MessageType } from "./messages.ts";
 import type { ListenRef, MessageSource, MessageTarget } from "./model.ts";
 import { addMessageEventListener } from "./utils.ts";
 
-export class ChannelConnection {
+export class Connection {
   static connect(
     id: string,
     target: MessageTarget<unknown>,
