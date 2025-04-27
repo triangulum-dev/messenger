@@ -1,3 +1,5 @@
+import  type { MessageSource } from "./model.ts";
+
 export function withResolvers<T>(): {
   resolve: (value: T) => void;
   reject: (reason?: unknown) => void;
@@ -10,4 +12,30 @@ export function withResolvers<T>(): {
     reject = rej;
   });
   return { resolve, reject, promise };
+}
+
+export function addMessageEventListener(
+  source: MessageSource,
+  listener: (event: MessageEvent) => void,
+) {
+  source.addEventListener("message", listener);
+  if (isMessagePort(source)) {
+    source.start();
+  }
+}
+
+export function isMessagePort(
+  source: MessageSource,
+): source is MessagePort {
+  return (
+    typeof (source as MessagePort).start === "function"
+  );
+}
+
+export function releaseMicrotask() {
+  return new Promise<void>((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, 0);
+  });
 }

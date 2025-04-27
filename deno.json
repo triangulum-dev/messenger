@@ -7,12 +7,16 @@
   },
   "license": "MIT",
   "imports": {
-    "@deno/dnt": "jsr:@deno/dnt@^0.41.3"
+    "@deno/dnt": "jsr:@deno/dnt@^0.41.3",
+    "@std/expect": "jsr:@std/expect@^1.0.15",
+    "@std/testing": "jsr:@std/testing@^1.0.11"
   },
   "compilerOptions": {
     "lib": [
       "dom",
-      "es2022"
+      "deno.window",
+      "es2022",
+      "deno.ns"
     ]
   }
 }

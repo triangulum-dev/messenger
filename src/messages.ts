@@ -1,74 +1,75 @@
 export enum MessageType {
-  AsyncReject = "@triangulum/messenger/messages/async-reject-message",
-  AsyncResolve = "@triangulum/messenger/messages/async-resolve-message",
-  AsyncRequest = "@triangulum/messenger/messages/async-request-message",
   Connect = "@triangulum/messenger/messages/connect",
+  Reject = "@triangulum/messenger/messages/reject",
+  Request = "@triangulum/messenger/messages/request",
+  Resolve = "@triangulum/messenger/messages/resolve",
 }
 
 export type ConnectMessage = {
   type: MessageType.Connect;
-  port: MessagePort;
   id: string;
 };
 
 export function connectMessage(
   id: string,
-  port: MessagePort,
 ): ConnectMessage {
   return {
     type: MessageType.Connect,
-    port,
     id,
   };
 } 
 
 export type AsyncRequestMessage<T> = {
-  type: MessageType.AsyncRequest;
-  id: string;
+  type: MessageType.Request;
+  id: string | number;
   data: T;
 };
 
 export function asyncRequestMessage<T>(
-  id: string,
+  id: string | number,
   data: T,
 ): AsyncRequestMessage<T> {
   return {
-    type: MessageType.AsyncRequest,
+    type: MessageType.Request,
     id,
     data,
   };
 }
 
 export type AsyncResolveMessage<T> = {
-  type: MessageType.AsyncResolve;
-  id: string;
+  type: MessageType.Resolve;
+  id: string | number;
   data: T;
 };
 
-export function asyncResolveMessage<T>(
-  id: string,
+export function resolveMessage<T>(
+  id: string | number,
   data: T,
 ): AsyncResolveMessage<T> {
   return {
-    type: MessageType.AsyncResolve,
+    type: MessageType.Resolve,
     id,
     data,
   };
 }
 
 export type AsyncRejectMessage = {
-  type: MessageType.AsyncReject;
-  id: string;
+  type: MessageType.Reject;
+  id: string | number;
   error: unknown;
 };
 
 export function asyncRejectMessage(
-  id: string,
+  id: string | number,
   error: unknown,
 ): AsyncRejectMessage {
   return {
-    type: MessageType.AsyncReject,
+    type: MessageType.Reject,
     id,
     error,
   };
 }
+
+export type ResponseMessage<T> = 
+  | AsyncResolveMessage<T>
+  | AsyncRejectMessage;

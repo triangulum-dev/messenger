@@ -2,7 +2,7 @@ import type { AsyncRequestMessage } from "./messages.ts";
 import { ChannelConnection } from "./channel-connection.ts";
 import {
   asyncRejectMessage,
-  asyncResolveMessage,
+  resolveMessage,
   MessageType,
 } from "./messages.ts";
 import type {
@@ -11,6 +11,7 @@ import type {
   ListenRef,
   MessageSource,
 } from "./model.ts";
+import { addMessageEventListener } from "./utils.ts";
 
 export type MessengerControllerHandler<T extends Function = Function> = (
   ...args: Parameters<T>
@@ -26,42 +27,13 @@ export class MessengerController<T extends FunctionMap> {
   constructor(
     readonly id: string,
     readonly source: MessageSource,
-    readonly sourceOrigin: string,
   ) {
     this.#listenRef = ChannelConnection.listen(
       this.id,
       this.source,
-      this.sourceOrigin,
       this.#onConnect,
     );
   }
-
-  #onConnect = (port: MessagePort) => {
-    const onMessage = (message: MessageEvent) => this.#onMessage(port, message);
-    port.addEventListener(
-      "message",
-      onMessage,
-    );
-    this.#connections.set(port, onMessage);
-  };
-
-  #onMessage = async (
-    port: MessagePort,
-    event: MessageEvent<AsyncRequestMessage<unknown>>,
-  ) => {
-    if (event.data.type !== MessageType.AsyncRequest) {
-      return;
-    }
-    const { id, data } = event.data;
-    if (this.#callback) {
-      try {
-        const result = await this.#callback(data);
-        port.postMessage(asyncResolveMessage(id, result));
-      } catch (error) {
-        port.postMessage(asyncRejectMessage(id, error));
-      }
-    }
-  };
 
   on<F extends T[keyof T]>(
     handler: MessengerControllerHandler<F>,
@@ -69,11 +41,39 @@ export class MessengerController<T extends FunctionMap> {
     this.#callback = handler;
   }
 
-  destroy() {
+  close() {
     this.#listenRef.destroy();
     for (const [port, onMessage] of this.#connections) {
       port.removeEventListener("message", onMessage);
       port.close();
     }
   }
+
+  #onConnect = (port: MessagePort) => {
+    const onMessage = (message: MessageEvent) => this.#onMessage(port, message);
+    addMessageEventListener(port, onMessage);
+    this.#connections.set(port, onMessage);
+  };
+
+  #onMessage = async (
+    port: MessagePort,
+    event: MessageEvent<AsyncRequestMessage<unknown>>,
+  ) => {
+    if (event.data.type !== MessageType.Request) {
+      return;
+    }
+    const { id, data } = event.data;
+    if (this.#callback) {
+      try {
+        const result = await this.#callback(data);
+        port.postMessage(resolveMessage(id, result));
+      } catch (error) {
+        try {
+          port.postMessage(asyncRejectMessage(id, error));
+        } catch (e) {
+          console.error("Error sending error message:", e);
+        }
+      }
+    }
+  };
 }

@@ -2,7 +2,6 @@
 export type MessageTarget<T = any> = {
   postMessage(
     message: T,
-    targetOrigin: string,
     transfer?: Transferable[]
   ): void;
 };
@@ -19,6 +18,7 @@ export type MessageSource<T = any> = {
     listener: (event: MessageEvent<T>) => void
   ): void;
 };
+
 
 export type ListenRef = {
   destroy: () => void;
