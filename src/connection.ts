@@ -4,20 +4,22 @@ import type { ListenRef, MessageSource, MessageTarget } from "./model.ts";
 import { addMessageEventListener } from "./utils.ts";
 
 export class Connection {
-  static connect(
+  constructor(readonly id: string, readonly port: MessagePort) {}
+
+  static create(
     id: string,
     target: MessageTarget<unknown>,
-  ): MessagePort {
+  ): Connection {
     const channel = new MessageChannel();
     const message: ConnectMessage = connectMessage(id);
     target.postMessage(message, [channel.port2]);
-    return channel.port1;
+    return new Connection(id, channel.port1);
   }
 
   static listen(
     id: string,
     source: MessageSource<ConnectMessage>,
-    onConnect: (messenger: MessagePort) => void,
+    onConnect: (messenger: Connection) => void,
   ): ListenRef {
     const onmessage = (event: MessageEvent) => {
       if (
@@ -25,7 +27,8 @@ export class Connection {
         event.data.id === id
       ) {
         const port = event.ports[0];
-        onConnect(port);
+        const connection = new Connection(id, port);
+        onConnect(connection);
       }
     };
     addMessageEventListener(source, onmessage);
