@@ -8,8 +8,8 @@ await build({
   ],
   outDir: "./npm",
   shims: {},
-  test: false,
   typeCheck: "both",
+  test: false,
   compilerOptions: {
     lib: ["DOM", "ES2022"],
   },
@@ -21,13 +21,16 @@ await build({
     scripts: {
       "publish": "npm publish --access public --tag next",
     },
+    "peerDependencies": {
+      "rxjs": "^7.8.0",
+    },
     license: "MIT",
     repository: {
       type: "git",
-      url: "git+https://github.com/grant-wilson/messenger.git",
+      url: "git+https://github.com/triangulum-dev/messenger.git",
     },
     bugs: {
-      url: "https://github.com/grant-wilson/messenger/issues",
+      url: "https://github.com/triangulum-dev/messenger/issues",
     },
   },
 });

@@ -1,23 +1,7 @@
 import type { Observable } from "rxjs";
 import { Controller } from "./controller.ts";
-import type { MessageSource } from "./model.ts";
+import type { AddObservableFunctionType, AddPromiseFunctionType, MessageSource } from "./model.ts";
 import { ProxyBuilder } from "./proxy-builder.ts";
-
-export type AddPromiseFunctionType<
-  Name extends string,
-  Args extends unknown[],
-  ReturnType,
-> = {
-  [K in Name]: (...args: Args) => Promise<ReturnType>;
-};
-
-export type AddObservableFunctionType<
-  Name extends string,
-  Args extends unknown[],
-  ReturnType,
-> = {
-  [K in Name]: (...args: Args) => Observable<ReturnType>;
-};
 
 export class ControllerBuilder<T extends object = object> {
   #proxyBuilder: ProxyBuilder<T>;

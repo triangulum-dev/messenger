@@ -1,27 +1,11 @@
 import { Client } from "./client.ts";
-import type { MessageSource, MessageTarget } from "./model.ts";
+import type { AddFunctionType, AddObservableFunctionType, MessageSource, MessageTarget } from "./model.ts";
 import { ProxyBuilder } from "./proxy-builder.ts";
 import type { Observable } from "rxjs";
 import {
   functionCallMessage,
   observableFunctionCallMessage,
 } from "./messages.ts";
-
-export type AddFunctionType<
-  Name extends string,
-  Args extends unknown[],
-  ReturnType,
-> = {
-  [K in Name]: (...args: Args) => Promise<ReturnType>;
-};
-
-export type AddObservableFunctionType<
-  Name extends string,
-  Args extends unknown[],
-  ReturnType,
-> = {
-  [K in Name]: (...args: Args) => Observable<ReturnType>;
-};
 
 export class ClientBuilder<T extends object = object> {
   #proxyBuilder: ProxyBuilder<T>;
