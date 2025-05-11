@@ -1,0 +1,32 @@
+/// <reference lib="webworker" />
+
+import { ControllerBuilder } from '@triangulum/messenger';
+import { interval, map, timer } from 'rxjs';
+
+const builder = new ControllerBuilder();
+
+const controller = builder
+  .addObservableFunctionHandler('time', () => timer(0,1000).pipe(map(x => new Date().valueOf())))
+  .addPromiseFunctionHandler('calculateNthPrime', async (n: number) => {
+    if (n < 1) {
+      throw new Error('n must be greater than 0');
+    }
+    let count = 0;
+    let num = 1;
+    while (count < n) {
+      num++;
+      let isPrime = true;
+      for (let i = 2; i <= Math.sqrt(num); i++) {
+        if (num % i === 0) {
+          isPrime = false;
+          break;
+        }
+      }
+      if (isPrime) {
+        count++;
+      }
+    }
+
+    return num;
+  })
+  .build('test-worker', globalThis);
