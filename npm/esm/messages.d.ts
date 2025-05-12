@@ -8,7 +8,8 @@ export declare enum MessageType {
     Complete = "@triangulum/messenger/v1/messages/complete",
     Error = "@triangulum/messenger/v1/messages/error",
     FunctionCall = "@triangulum/messenger/v1/messages/function_call",
-    ObservableFunctionCall = "@triangulum/messenger/v1/messages/observable_function_call"
+    ObservableFunctionCall = "@triangulum/messenger/v1/messages/observable_function_call",
+    Abort = "@triangulum/messenger/v1/messages/abort"
 }
 export type ConnectMessage = {
     type: MessageType.Connect;
@@ -56,6 +57,10 @@ export type ErrorMessage = {
     error: unknown;
 };
 export declare function errorMessage(id: string | number, error: unknown): ErrorMessage;
+export declare function abortMessage(id: string | number): {
+    type: MessageType;
+    id: string | number;
+};
 export type FunctionCallMessage = {
     type: MessageType.FunctionCall;
     function: string;

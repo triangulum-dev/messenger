@@ -9,6 +9,7 @@ exports.emitMessage = emitMessage;
 exports.observeMessage = observeMessage;
 exports.completeMessage = completeMessage;
 exports.errorMessage = errorMessage;
+exports.abortMessage = abortMessage;
 exports.functionCallMessage = functionCallMessage;
 exports.observableFunctionCallMessage = observableFunctionCallMessage;
 var MessageType;
@@ -23,6 +24,7 @@ var MessageType;
     MessageType["Error"] = "@triangulum/messenger/v1/messages/error";
     MessageType["FunctionCall"] = "@triangulum/messenger/v1/messages/function_call";
     MessageType["ObservableFunctionCall"] = "@triangulum/messenger/v1/messages/observable_function_call";
+    MessageType["Abort"] = "@triangulum/messenger/v1/messages/abort";
 })(MessageType || (exports.MessageType = MessageType = {}));
 function connectMessage(id) {
     return {
@@ -76,6 +78,12 @@ function errorMessage(id, error) {
         type: MessageType.Error,
         id,
         error,
+    };
+}
+function abortMessage(id) {
+    return {
+        type: MessageType.Abort,
+        id,
     };
 }
 function functionCallMessage(functionName, args) {

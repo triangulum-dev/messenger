@@ -1,18 +1,6 @@
-var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-};
-var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
-    if (kind === "m") throw new TypeError("Private method is not writable");
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
-};
-var _Client_messageId;
 import { Observable } from "rxjs";
-import { MessageType, observeMessage, promiseMessage } from "./messages.js";
-import { addMessageEventListener, withResolvers } from "./utils.js";
+import { abortMessage, MessageType, observeMessage, promiseMessage, } from "./messages.js";
+import { addMessageEventListener, UUID, withResolvers } from "./utils.js";
 export class Client {
     constructor(target) {
         Object.defineProperty(this, "target", {
@@ -21,11 +9,9 @@ export class Client {
             writable: true,
             value: target
         });
-        _Client_messageId.set(this, 0);
     }
     promise(message, abortSignal) {
-        var _a, _b;
-        const id = (__classPrivateFieldSet(this, _Client_messageId, (_b = __classPrivateFieldGet(this, _Client_messageId, "f"), _a = _b++, _b), "f"), _a);
+        const id = UUID.create();
         const { resolve, reject, promise } = withResolvers();
         const onMessage = (event) => {
             if ("id" in event.data && event.data.id !== id)
@@ -49,7 +35,7 @@ export class Client {
         });
         if (abortSignal) {
             const onAbort = () => {
-                reject(new Error(abortSignal.reason));
+                this.target.postMessage(abortMessage(id));
             };
             abortSignal.addEventListener("abort", onAbort, { once: true });
             promise.finally(() => {
@@ -60,7 +46,6 @@ export class Client {
     }
     observable(message) {
         return new Observable((subscriber) => {
-            var _a, _b;
             const onMessage = (event) => {
                 if (event.data.type === MessageType.Emit) {
                     subscriber.next(event.data.data);
@@ -74,7 +59,7 @@ export class Client {
             };
             addMessageEventListener(this.target, onMessage);
             if (message) {
-                this.target.postMessage(observeMessage((__classPrivateFieldSet(this, _Client_messageId, (_b = __classPrivateFieldGet(this, _Client_messageId, "f"), _a = _b++, _b), "f"), _a), message));
+                this.target.postMessage(observeMessage(UUID.create(), message));
             }
             return () => {
                 this.target.removeEventListener("message", onMessage);
@@ -84,4 +69,3 @@ export class Client {
     close() {
     }
 }
-_Client_messageId = new WeakMap();

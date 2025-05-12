@@ -5,7 +5,7 @@ export declare class Controller {
     readonly target: MessageTarget;
     constructor(target: MessageTarget);
     start(): void;
-    onPromise(handler: (data: unknown) => Promise<unknown>): void;
+    onPromise(handler: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>): void;
     onObservable(handler: (data: unknown) => Observable<unknown>): void;
     close(): void;
 }

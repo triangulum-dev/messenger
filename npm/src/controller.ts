@@ -1,27 +1,28 @@
 import type { Observable } from "rxjs";
-import { Connection } from "./connection.js";
+import type { Connection } from "./connection.js";
 import { MessageType, rejectMessage, resolveMessage } from "./messages.js";
-import type { ListenRef, MessageTarget } from "./model.js";
+import type { MessageTarget } from "./model.js";
 import { addMessageEventListener } from "./utils.js";
 
 // Message data type for Promise and Observable
 interface MessageData {
-  id: string | number;
+  id: string;
   data: unknown;
 }
 
 export class Controller {
   #connections = new Map<Connection, (event: MessageEvent) => void>();
 
-  #promiseCallback?: (data: unknown) => Promise<unknown>;
+  #promiseCallback?: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>;
 
   #observableCallback?: (data: unknown) => Observable<unknown>;
 
   // Use a single array as a deque for active requests
   #activeRequests: Array<{
-    id: string | number;
+    id: string;
     type: "promise" | "observable";
     data: MessageData;
+    abortController?: AbortController; // Only for promise requests
   }> = [];
 
   constructor(
@@ -35,17 +36,17 @@ export class Controller {
     addMessageEventListener(this.target, onMessage);
   }
 
-  onPromise(handler: (data: unknown) => Promise<unknown>) {
+  onPromise(handler: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>) {
     this.#promiseCallback = handler;
     // Play any queued promise requests in order
     const pending = this.#activeRequests.filter((r) => r.type === "promise");
     for (const req of pending) {
       this.#handlePromise(
         req as {
-          connection: Connection;
-          id: string | number;
+          id: string;
           type: "promise";
           data: MessageData;
+          abortController: AbortController;
         },
       );
     }
@@ -103,27 +104,31 @@ export class Controller {
       await this.#handlePromiseMessage(data);
     } else if (data.type === MessageType.Observable) {
       this.#handleObservableMessage(data);
+    } else if (data.type === MessageType.Abort) {
+      this.#handleAbortMessage(data);
     } else {
       console.error("Unknown message type:", data.type);
     }
   };
 
   async #handlePromiseMessage(data: MessageData) {
-    const req = { id: data.id, type: "promise", data } as const;
+    const abortController = new AbortController();
+    const req = { id: data.id, type: "promise", data, abortController } as const;
     this.#activeRequests.push(req);
     await this.#handlePromise(req);
   }
 
   async #handlePromise(
     req: {
-      id: string | number;
+      id: string;
       type: "promise";
       data: MessageData;
-    },
+      abortController: AbortController;
+    }
   ) {
     if (!this.#promiseCallback) return;
     try {
-      const result = await this.#promiseCallback(req.data.data);
+      const result = await this.#promiseCallback(req.data.data, req.abortController.signal);
       this.target.postMessage(resolveMessage(req.id, result));
     } catch (error) {
       try {
@@ -138,6 +143,13 @@ export class Controller {
         r.type === "promise"
       );
       if (idx !== -1) this.#activeRequests.splice(idx, 1);
+    }
+  }
+
+  #handleAbortMessage(data: { id: string }) {
+    const req = this.#activeRequests.find((r) => r.id === data.id && r.type === "promise");
+    if (req && req.abortController) {
+      req.abortController.abort();
     }
   }
 

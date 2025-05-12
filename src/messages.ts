@@ -9,6 +9,7 @@ export enum MessageType {
   Error = "@triangulum/messenger/v1/messages/error",
   FunctionCall = "@triangulum/messenger/v1/messages/function_call",
   ObservableFunctionCall = "@triangulum/messenger/v1/messages/observable_function_call",
+  Abort = "@triangulum/messenger/v1/messages/abort",
 }
 
 export type ConnectMessage = {
@@ -138,6 +139,13 @@ export function errorMessage(
     type: MessageType.Error,
     id,
     error,
+  };
+}
+
+export function abortMessage(id: string | number) {
+  return {
+    type: MessageType.Abort,
+    id,
   };
 }
 

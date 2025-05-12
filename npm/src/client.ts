@@ -1,12 +1,15 @@
 import { Observable } from "rxjs";
 import type { Message } from "./messages.js";
-import { MessageType, observeMessage, promiseMessage } from "./messages.js";
+import {
+  abortMessage,
+  MessageType,
+  observeMessage,
+  promiseMessage,
+} from "./messages.js";
 import type { MessageTarget } from "./model.js";
-import { addMessageEventListener, withResolvers } from "./utils.js";
+import { addMessageEventListener, UUID, withResolvers } from "./utils.js";
 
 export class Client {
-  #messageId = 0;
-
   constructor(
     readonly target: MessageTarget,
   ) {
@@ -16,7 +19,7 @@ export class Client {
     message: TMessage,
     abortSignal?: AbortSignal,
   ): Promise<TResponse> {
-    const id = this.#messageId++;
+    const id = UUID.create();
     const { resolve, reject, promise } = withResolvers<TResponse>();
     const onMessage = (
       event: MessageEvent<Message>,
@@ -45,7 +48,7 @@ export class Client {
     });
     if (abortSignal) {
       const onAbort = () => {
-        reject(new Error(abortSignal.reason));
+        this.target.postMessage(abortMessage(id));
       };
       abortSignal.addEventListener("abort", onAbort, { once: true });
       promise.finally(() => {
@@ -71,7 +74,7 @@ export class Client {
       addMessageEventListener(this.target, onMessage);
       if (message) {
         this.target.postMessage(
-          observeMessage(this.#messageId++, message),
+          observeMessage(UUID.create(), message),
         );
       }
       return () => {

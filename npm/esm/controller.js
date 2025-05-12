@@ -9,7 +9,7 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
     return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
 };
-var _Controller_instances, _Controller_connections, _Controller_promiseCallback, _Controller_observableCallback, _Controller_activeRequests, _Controller_onMessage, _Controller_handlePromiseMessage, _Controller_handlePromise, _Controller_handleObservableMessage, _Controller_handleObservable;
+var _Controller_instances, _Controller_connections, _Controller_promiseCallback, _Controller_observableCallback, _Controller_activeRequests, _Controller_onMessage, _Controller_handlePromiseMessage, _Controller_handlePromise, _Controller_handleAbortMessage, _Controller_handleObservableMessage, _Controller_handleObservable;
 import { MessageType, rejectMessage, resolveMessage } from "./messages.js";
 import { addMessageEventListener } from "./utils.js";
 export class Controller {
@@ -35,6 +35,9 @@ export class Controller {
             }
             else if (data.type === MessageType.Observable) {
                 __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleObservableMessage).call(this, data);
+            }
+            else if (data.type === MessageType.Abort) {
+                __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleAbortMessage).call(this, data);
             }
             else {
                 console.error("Unknown message type:", data.type);
@@ -90,14 +93,15 @@ export class Controller {
     }
 }
 _Controller_connections = new WeakMap(), _Controller_promiseCallback = new WeakMap(), _Controller_observableCallback = new WeakMap(), _Controller_activeRequests = new WeakMap(), _Controller_onMessage = new WeakMap(), _Controller_instances = new WeakSet(), _Controller_handlePromiseMessage = async function _Controller_handlePromiseMessage(data) {
-    const req = { id: data.id, type: "promise", data };
+    const abortController = new AbortController();
+    const req = { id: data.id, type: "promise", data, abortController };
     __classPrivateFieldGet(this, _Controller_activeRequests, "f").push(req);
     await __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handlePromise).call(this, req);
 }, _Controller_handlePromise = async function _Controller_handlePromise(req) {
     if (!__classPrivateFieldGet(this, _Controller_promiseCallback, "f"))
         return;
     try {
-        const result = await __classPrivateFieldGet(this, _Controller_promiseCallback, "f").call(this, req.data.data);
+        const result = await __classPrivateFieldGet(this, _Controller_promiseCallback, "f").call(this, req.data.data, req.abortController.signal);
         this.target.postMessage(resolveMessage(req.id, result));
     }
     catch (error) {
@@ -114,6 +118,11 @@ _Controller_connections = new WeakMap(), _Controller_promiseCallback = new WeakM
             r.type === "promise");
         if (idx !== -1)
             __classPrivateFieldGet(this, _Controller_activeRequests, "f").splice(idx, 1);
+    }
+}, _Controller_handleAbortMessage = function _Controller_handleAbortMessage(data) {
+    const req = __classPrivateFieldGet(this, _Controller_activeRequests, "f").find((r) => r.id === data.id && r.type === "promise");
+    if (req && req.abortController) {
+        req.abortController.abort();
     }
 }, _Controller_handleObservableMessage = function _Controller_handleObservableMessage(data) {
     const req = { id: data.id, type: "observable", data };

@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.UUID = void 0;
 exports.withResolvers = withResolvers;
 exports.addMessageEventListener = addMessageEventListener;
 exports.isMessagePort = isMessagePort;
@@ -29,3 +30,9 @@ function releaseMicrotask() {
         }, 0);
     });
 }
+class UUID {
+    static create() {
+        return crypto.randomUUID();
+    }
+}
+exports.UUID = UUID;

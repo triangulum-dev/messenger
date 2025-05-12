@@ -39,3 +39,9 @@ export function releaseMicrotask() {
     }, 0);
   });
 }
+
+export class UUID {
+  static create() {
+    return crypto.randomUUID();
+  }
+}

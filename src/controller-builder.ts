@@ -1,7 +1,6 @@
 import type { Observable } from "rxjs";
 import { Controller } from "./controller.ts";
 import type { AddObservableFunctionType, AddPromiseFunctionType, MessageTarget } from "./model.ts";
-import { Message } from "./messages.ts";
 
 export type PromiseHandlerDef<Args extends unknown[], ReturnType> = {
   type: "promise";
