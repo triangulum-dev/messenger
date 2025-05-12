@@ -1,7 +1,7 @@
-import type { ConnectMessage } from "./messages.ts";
-import { connectMessage, MessageType } from "./messages.ts";
-import type { ListenRef, MessageTarget } from "./model.ts";
-import { addMessageEventListener } from "./utils.ts";
+import type { ConnectMessage } from "../messages.ts";
+import { connectMessage, MessageType } from "../messages.ts";
+import type { ListenRef, MessageTarget } from "../model.ts";
+import { addMessageEventListener } from "../utils.ts";
 
 export class Connection {
   constructor(readonly id: string, readonly port: MessagePort) {}

@@ -1,5 +1,5 @@
 import type { Observable } from "rxjs";
-import type { Connection } from "./connection.ts";
+import type { Connection } from "./internal/connection.ts";
 import { MessageType, rejectMessage, resolveMessage } from "./messages.ts";
 import type { MessageTarget } from "./model.ts";
 import { addMessageEventListener } from "./utils.ts";
@@ -102,7 +102,7 @@ export class Controller {
     const { data } = event;
     if (data.type === MessageType.Promise) {
       await this.#handlePromiseMessage(data);
-    } else if (data.type === MessageType.Observable) {
+    } else if (data.type === MessageType.Subscribe) {
       this.#handleObservableMessage(data);
     } else if (data.type === MessageType.Abort) {
       this.#handleAbortMessage(data);

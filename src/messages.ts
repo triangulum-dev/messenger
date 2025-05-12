@@ -3,12 +3,14 @@ export enum MessageType {
   Promise = "@triangulum/messenger/v1/messages/promise",
   Resolve = "@triangulum/messenger/v1/messages/resolve",
   Reject = "@triangulum/messenger/v1/messages/reject",
-  Observable = "@triangulum/messenger/v1/messages/observable",
+  Subscribe = "@triangulum/messenger/v1/messages/subscribe",
+  Unsubscribe = "@triangulum/messenger/v1/messages/unsubscribe",
   Emit = "@triangulum/messenger/v1/messages/emit",
   Complete = "@triangulum/messenger/v1/messages/complete",
   Error = "@triangulum/messenger/v1/messages/error",
   FunctionCall = "@triangulum/messenger/v1/messages/function_call",
-  ObservableFunctionCall = "@triangulum/messenger/v1/messages/observable_function_call",
+  ObservableFunctionCall =
+    "@triangulum/messenger/v1/messages/observable_function_call",
   Abort = "@triangulum/messenger/v1/messages/abort",
 }
 
@@ -94,20 +96,34 @@ export function emitMessage<T>(
   };
 }
 
-export type ObserveMessage<T> = {
-  type: MessageType.Observable;
+export type SubscribeMessage<T> = {
+  type: MessageType.Subscribe;
   id: string | number;
   data: T;
 };
 
-export function observeMessage<T>(
+export function subscribeMessage<T>(
   id: string | number,
   data: T,
-): ObserveMessage<T> {
+): SubscribeMessage<T> {
   return {
-    type: MessageType.Observable,
+    type: MessageType.Subscribe,
     id,
     data,
+  };
+}
+
+export type UnsubscribeMessage = {
+  type: MessageType.Unsubscribe;
+  id: string | number;
+};
+
+export function unsubscribeMessage(
+  id: string | number,
+): UnsubscribeMessage {
+  return {
+    type: MessageType.Unsubscribe,
+    id,
   };
 }
 
@@ -155,7 +171,10 @@ export type FunctionCallMessage = {
   args: unknown[];
 };
 
-export function functionCallMessage(functionName: string, args: unknown[]): FunctionCallMessage {
+export function functionCallMessage(
+  functionName: string,
+  args: unknown[],
+): FunctionCallMessage {
   return {
     type: MessageType.FunctionCall,
     function: functionName,
@@ -169,7 +188,10 @@ export type ObservableFunctionCallMessage = {
   args: unknown[];
 };
 
-export function observableFunctionCallMessage(functionName: string, args: unknown[]): ObservableFunctionCallMessage {
+export function observableFunctionCallMessage(
+  functionName: string,
+  args: unknown[],
+): ObservableFunctionCallMessage {
   return {
     type: MessageType.ObservableFunctionCall,
     function: functionName,
@@ -182,7 +204,7 @@ export type Message =
   | PromiseMessage<unknown>
   | ResolveMessage<unknown>
   | RejectMessage
-  | ObserveMessage<unknown>
+  | SubscribeMessage<unknown>
   | EmitMessage<unknown>
   | CompleteMessage
   | ErrorMessage

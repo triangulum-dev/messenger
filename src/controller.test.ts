@@ -1,9 +1,9 @@
 import { expect } from "@std/expect/expect";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { assertSpyCall, assertSpyCallArg, spy, stub } from "@std/testing/mock";
-import { Connection } from "./connection.ts";
+import { Connection } from "./internal/connection.ts";
 import { Controller } from "./controller.ts";
-import { promiseMessage, rejectMessage, resolveMessage, observeMessage, emitMessage, errorMessage, completeMessage } from "./messages.ts";
+import { promiseMessage, rejectMessage, resolveMessage, subscribeMessage, emitMessage, errorMessage, completeMessage } from "./messages.ts";
 import { releaseMicrotask } from "./utils.ts";
 import { Observable } from "rxjs";
 
@@ -92,7 +92,7 @@ describe("Controller", () => {
       received.push(event.data);
     };
     // Act
-    clientPort.postMessage(observeMessage(messageId, message));
+    clientPort.postMessage(subscribeMessage(messageId, message));
     await releaseMicrotask();
     // Assert
     assertSpyCall(observableHandler, 0);
@@ -118,7 +118,7 @@ describe("Controller", () => {
       received = event.data;
     };
     // Act
-    clientPort.postMessage(observeMessage(messageId, message));
+    clientPort.postMessage(subscribeMessage(messageId, message));
     await releaseMicrotask();
     // Assert
     assertSpyCall(observableHandler, 0);
@@ -141,7 +141,7 @@ describe("Controller", () => {
       received = event.data;
     };
     // Act
-    clientPort.postMessage(observeMessage(messageId, message));
+    clientPort.postMessage(subscribeMessage(messageId, message));
     await releaseMicrotask();
     // Assert
     assertSpyCall(observableHandler, 0);
@@ -180,7 +180,7 @@ describe("Controller", () => {
       received = event.data;
     };
     // Act
-    clientPort.postMessage(observeMessage(messageId, message));
+    clientPort.postMessage(subscribeMessage(messageId, message));
     await releaseMicrotask();
     controller.close();
     await releaseMicrotask();
@@ -246,7 +246,7 @@ describe("Controller", () => {
       received = event.data;
     };
     // Act
-    clientPort.postMessage(observeMessage(messageId, message));
+    clientPort.postMessage(subscribeMessage(messageId, message));
     await releaseMicrotask();
     // Attach handler after message
     const observableHandler = spy(() => new Observable<string>((subscriber) => {

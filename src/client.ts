@@ -3,8 +3,9 @@ import type { Message } from "./messages.ts";
 import {
   abortMessage,
   MessageType,
-  observeMessage,
   promiseMessage,
+  subscribeMessage,
+  unsubscribeMessage,
 } from "./messages.ts";
 import type { MessageTarget } from "./model.ts";
 import { addMessageEventListener, UUID, withResolvers } from "./utils.ts";
@@ -62,6 +63,7 @@ export class Client {
     message?: TMessage,
   ): Observable<TResponse> {
     return new Observable<TResponse>((subscriber) => {
+      const id = UUID.create();
       const onMessage = (event: MessageEvent<Message>) => {
         if (event.data.type === MessageType.Emit) {
           subscriber.next(event.data.data as TResponse);
@@ -74,11 +76,12 @@ export class Client {
       addMessageEventListener(this.target, onMessage);
       if (message) {
         this.target.postMessage(
-          observeMessage(UUID.create(), message),
+          subscribeMessage(id, message),
         );
       }
       return () => {
         this.target.removeEventListener("message", onMessage);
+        this.target.postMessage(unsubscribeMessage(id));
       };
     });
   }

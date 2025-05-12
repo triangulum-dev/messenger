@@ -7,7 +7,7 @@ import {
   completeMessage,
   emitMessage,
   errorMessage,
-  observeMessage,
+  subscribeMessage,
   promiseMessage,
   rejectMessage,
   resolveMessage,
@@ -59,7 +59,7 @@ describe("Client", () => {
   it("should send an observable message and emit values", async () => {
     const message = "obs test";
     controllerPort.onmessage = (event: MessageEvent) => {
-      expect(event.data).toEqual(observeMessage(messageId, message));
+      expect(event.data).toEqual(subscribeMessage(messageId, message));
       controllerPort.postMessage(emitMessage(messageId, "value1"));
       controllerPort.postMessage(emitMessage(messageId, "value2"));
       controllerPort.postMessage(completeMessage(messageId));
@@ -80,7 +80,7 @@ describe("Client", () => {
     const message = "obs error";
     const error = new Error("observable error");
     controllerPort.onmessage = (event: MessageEvent) => {
-      expect(event.data).toEqual(observeMessage(messageId, message));
+      expect(event.data).toEqual(subscribeMessage(messageId, message));
       controllerPort.postMessage(errorMessage(messageId, error));
     };
     await new Promise<void>((resolve) => {
