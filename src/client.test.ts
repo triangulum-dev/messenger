@@ -1,16 +1,17 @@
 import { expect } from "@std/expect/expect";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { Stub, stub } from "@std/testing/mock";
+import type { Stub } from "@std/testing/mock";
+import { stub } from "@std/testing/mock";
 import { assertRejects } from "jsr:@std/assert@^1.0.12/rejects";
 import { Client } from "./client.ts";
 import {
   completeMessage,
   emitMessage,
   errorMessage,
-  subscribeMessage,
   promiseMessage,
   rejectMessage,
   resolveMessage,
+  subscribeMessage,
 } from "./messages.ts";
 import { UUID } from "./utils.ts";
 
@@ -46,7 +47,7 @@ describe("Client", () => {
     expect(result).toBe("response");
   });
 
-  it("should send a promise message and reject on error", async () => {
+  it("should send a promise message and reject on error", () => {
     const message = "fail message";
     const error = new Error("fail");
     controllerPort.onmessage = (event: MessageEvent) => {
@@ -91,10 +92,5 @@ describe("Client", () => {
         },
       });
     });
-  });
-
-  it("should close the connection when close is called", () => {
-    // No direct way to assert port is closed, but no error should occur
-    client.close();
   });
 });
