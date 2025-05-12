@@ -13,7 +13,7 @@ export type ObservableHandlerDef<Args extends unknown[], ReturnType> = {
   handler: (...args: Args) => Observable<ReturnType>;
 };
 
-export type HandlerDefUnion = PromiseHandlerDef<unknown[], unknown> | ObservableHandlerDef<unknown[], unknown>;
+export type HandlerDefUnion = PromiseHandlerDef<any[], any> | ObservableHandlerDef<any[], any>;
 
 export type ExtractHandlerArgs<Def extends HandlerDefUnion> =
   Def extends PromiseHandlerDef<infer Args, unknown> ? Args :

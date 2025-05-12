@@ -24,13 +24,7 @@ function observableFunction() {
     return { type: "observable" };
 }
 class ClientBuilder {
-    constructor(id, target) {
-        Object.defineProperty(this, "id", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: id
-        });
+    constructor(target) {
         Object.defineProperty(this, "target", {
             enumerable: true,
             configurable: true,

@@ -9,7 +9,7 @@ export type ObservableHandlerDef<Args extends unknown[], ReturnType> = {
     type: "observable";
     handler: (...args: Args) => Observable<ReturnType>;
 };
-export type HandlerDefUnion = PromiseHandlerDef<unknown[], unknown> | ObservableHandlerDef<unknown[], unknown>;
+export type HandlerDefUnion = PromiseHandlerDef<any[], any> | ObservableHandlerDef<any[], any>;
 export type ExtractHandlerArgs<Def extends HandlerDefUnion> = Def extends PromiseHandlerDef<infer Args, unknown> ? Args : Def extends ObservableHandlerDef<infer Args, unknown> ? Args : never;
 export type ExtractHandlerReturnType<Def extends HandlerDefUnion> = Def extends PromiseHandlerDef<unknown[], infer Ret> ? Ret : Def extends ObservableHandlerDef<unknown[], infer Ret> ? Ret : never;
 export declare function promiseHandler<Args extends unknown[], ReturnType>(handler: (...args: Args) => Promise<ReturnType>): PromiseHandlerDef<Args, ReturnType>;

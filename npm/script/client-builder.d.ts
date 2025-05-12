@@ -14,9 +14,8 @@ export declare function promiseFunction<Args extends unknown[], ReturnType>(): P
 export declare function observableFunction<Args extends unknown[], ReturnType>(): ObservableFunctionDef<Args, ReturnType>;
 export declare class ClientBuilder<T extends object = object> {
     #private;
-    readonly id: string;
     readonly target: MessageTarget;
-    constructor(id: string, target: MessageTarget);
+    constructor(target: MessageTarget);
     add<Name extends string, Def extends FunctionDef<unknown[], unknown>>(name: Name, definition: Def): ClientBuilder<T & (Def extends {
         type: "promise";
     } ? AddFunctionType<Name, ExtractArgs<Def>, ExtractReturnType<Def>> : AddObservableFunctionType<Name, ExtractArgs<Def>, ExtractReturnType<Def>>)>;
