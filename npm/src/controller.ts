@@ -1,7 +1,7 @@
 import type { Observable } from "rxjs";
 import { Connection } from "./connection.js";
 import { MessageType, rejectMessage, resolveMessage } from "./messages.js";
-import type { ListenRef, MessageSource } from "./model.js";
+import type { ListenRef, MessageTarget } from "./model.js";
 import { addMessageEventListener } from "./utils.js";
 
 // Message data type for Promise and Observable
@@ -11,8 +11,6 @@ interface MessageData {
 }
 
 export class Controller {
-  #listenRef: ListenRef;
-
   #connections = new Map<Connection, (event: MessageEvent) => void>();
 
   #promiseCallback?: (data: unknown) => Promise<unknown>;
@@ -21,29 +19,35 @@ export class Controller {
 
   // Use a single array as a deque for active requests
   #activeRequests: Array<{
-    connection: Connection;
     id: string | number;
-    type: 'promise' | 'observable';
+    type: "promise" | "observable";
     data: MessageData;
   }> = [];
 
   constructor(
-    readonly id: string,
-    readonly source: MessageSource,
+    readonly target: MessageTarget,
   ) {
-    this.#listenRef = Connection.listen(
-      this.id,
-      this.source,
-      this.#onConnect,
-    );
+    // Listener setup moved to start() method
+  }
+
+  start() {
+    const onMessage = (message: MessageEvent) => this.#onMessage(message);
+    addMessageEventListener(this.target, onMessage);
   }
 
   onPromise(handler: (data: unknown) => Promise<unknown>) {
     this.#promiseCallback = handler;
     // Play any queued promise requests in order
-    const pending = this.#activeRequests.filter(r => r.type === 'promise');
+    const pending = this.#activeRequests.filter((r) => r.type === "promise");
     for (const req of pending) {
-      this.#handlePromise(req as { connection: Connection; id: string | number; type: 'promise'; data: MessageData });
+      this.#handlePromise(
+        req as {
+          connection: Connection;
+          id: string | number;
+          type: "promise";
+          data: MessageData;
+        },
+      );
     }
   }
 
@@ -52,22 +56,36 @@ export class Controller {
   ) {
     this.#observableCallback = handler;
     // Play any queued observable requests in order
-    const pending = this.#activeRequests.filter(r => r.type === 'observable');
+    const pending = this.#activeRequests.filter((r) => r.type === "observable");
     for (const req of pending) {
-      this.#handleObservable(req as { connection: Connection; id: string | number; type: 'observable'; data: MessageData });
+      this.#handleObservable(
+        req as {
+          connection: Connection;
+          id: string | number;
+          type: "observable";
+          data: MessageData;
+        },
+      );
     }
   }
 
   close() {
-    this.#listenRef.destroy();
     // Reject/error all active requests in FIFO order before closing the port
     while (this.#activeRequests.length > 0) {
       const req = this.#activeRequests.shift();
       if (!req) break;
-      if (req.type === 'promise') {
-        req.connection.port.postMessage({ type: MessageType.Reject, id: req.id, error: new Error("Connection closed") });
-      } else if (req.type === 'observable') {
-        req.connection.port.postMessage({ type: MessageType.Error, id: req.id, error: new Error("Connection closed") });
+      if (req.type === "promise") {
+        this.target.postMessage({
+          type: MessageType.Reject,
+          id: req.id,
+          error: new Error("Connection closed"),
+        });
+      } else if (req.type === "observable") {
+        this.target.postMessage({
+          type: MessageType.Error,
+          id: req.id,
+          error: new Error("Connection closed"),
+        });
       }
     }
     for (const [connection, onMessage] of this.#connections) {
@@ -76,72 +94,81 @@ export class Controller {
     }
   }
 
-  #onConnect = (connection: Connection) => {
-    const onMessage = (message: MessageEvent) =>
-      this.#onMessage(connection, message);
-    addMessageEventListener(connection.port, onMessage);
-    this.#connections.set(connection, onMessage);
-  };
-
   #onMessage = async (
-    connection: Connection,
     // deno-lint-ignore no-explicit-any
     event: MessageEvent<any>,
   ) => {
     const { data } = event;
     if (data.type === MessageType.Promise) {
-      await this.#handlePromiseMessage(connection, data);
+      await this.#handlePromiseMessage(data);
     } else if (data.type === MessageType.Observable) {
-      this.#handleObservableMessage(connection, data);
+      this.#handleObservableMessage(data);
     } else {
       console.error("Unknown message type:", data.type);
     }
   };
 
-  async #handlePromiseMessage(connection: Connection, data: MessageData) {
-    const req = { connection, id: data.id, type: 'promise', data } as const;
+  async #handlePromiseMessage(data: MessageData) {
+    const req = { id: data.id, type: "promise", data } as const;
     this.#activeRequests.push(req);
     await this.#handlePromise(req);
   }
 
-  async #handlePromise(req: { connection: Connection; id: string | number; type: 'promise'; data: MessageData }) {
+  async #handlePromise(
+    req: {
+      id: string | number;
+      type: "promise";
+      data: MessageData;
+    },
+  ) {
     if (!this.#promiseCallback) return;
     try {
       const result = await this.#promiseCallback(req.data.data);
-      req.connection.port.postMessage(resolveMessage(req.id, result));
+      this.target.postMessage(resolveMessage(req.id, result));
     } catch (error) {
       try {
-        req.connection.port.postMessage(rejectMessage(req.id, error));
+        this.target.postMessage(rejectMessage(req.id, error));
       } catch (e) {
         console.error("Error sending reject message:", e);
       }
     } finally {
       // Remove the first matching promise from the deque (FIFO)
-      const idx = this.#activeRequests.findIndex(r => r.connection === req.connection && r.id === req.id && r.type === 'promise');
+      const idx = this.#activeRequests.findIndex((r) =>
+        r.id === req.id &&
+        r.type === "promise"
+      );
       if (idx !== -1) this.#activeRequests.splice(idx, 1);
     }
   }
 
   // Handles tracking and activation for observable messages
-  #handleObservableMessage(connection: Connection, data: MessageData) {
-    const req = { connection, id: data.id, type: 'observable', data } as const;
+  #handleObservableMessage(data: MessageData) {
+    const req = { id: data.id, type: "observable", data } as const;
     this.#activeRequests.push(req);
     this.#handleObservable(req);
   }
 
   // Handles the actual observable logic
-  #handleObservable(req: { connection: Connection; id: string | number; type: 'observable'; data: MessageData }) {
+  #handleObservable(
+    req: {
+      id: string | number;
+      type: "observable";
+      data: MessageData;
+    },
+  ) {
     if (!this.#observableCallback) return;
     let completed = false;
-    const { connection, id, data } = req;
+    const { id, data } = req;
     const removeFromActiveRequests = () => {
-      const idx = this.#activeRequests.findIndex(r => r.connection === connection && r.id === id && r.type === 'observable');
+      const idx = this.#activeRequests.findIndex((r) =>
+        r.id === id && r.type === "observable"
+      );
       if (idx !== -1) this.#activeRequests.splice(idx, 1);
     };
     const observer = {
       next: (value: unknown) => {
         if (!completed) {
-          connection.port.postMessage({
+          this.target.postMessage({
             type: MessageType.Emit,
             id,
             data: value,
@@ -151,7 +178,7 @@ export class Controller {
       error: (err: unknown) => {
         if (!completed) {
           completed = true;
-          connection.port.postMessage({
+          this.target.postMessage({
             type: MessageType.Error,
             id,
             error: err,
@@ -162,7 +189,7 @@ export class Controller {
       complete: () => {
         if (!completed) {
           completed = true;
-          connection.port.postMessage({ type: MessageType.Complete, id });
+          this.target.postMessage({ type: MessageType.Complete, id });
           removeFromActiveRequests();
         }
       },

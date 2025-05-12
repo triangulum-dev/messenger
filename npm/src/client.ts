@@ -1,23 +1,15 @@
 import { Observable } from "rxjs";
-import { Connection } from "./connection.js";
 import type { Message } from "./messages.js";
 import { MessageType, observeMessage, promiseMessage } from "./messages.js";
-import type { MessageSource, MessageTarget } from "./model.js";
+import type { MessageTarget } from "./model.js";
 import { addMessageEventListener, withResolvers } from "./utils.js";
 
 export class Client {
   #messageId = 0;
 
-  #connection: Connection;
-
   constructor(
-    readonly id: string,
-    readonly target: MessageTarget & MessageSource,
+    readonly target: MessageTarget,
   ) {
-    this.#connection = Connection.create(
-      this.id,
-      this.target,
-    );
   }
 
   promise<TMessage, TResponse>(
@@ -44,12 +36,12 @@ export class Client {
         reject(new Error("Invalid message type"));
       }
     };
-    addMessageEventListener(this.#connection.port, onMessage);
-    this.#connection.port.postMessage(
+    addMessageEventListener(this.target, onMessage);
+    this.target.postMessage(
       promiseMessage(id, message),
     );
     promise.finally(() => {
-      this.#connection.port.removeEventListener("message", onMessage);
+      this.target.removeEventListener("message", onMessage);
     });
     if (abortSignal) {
       const onAbort = () => {
@@ -76,19 +68,18 @@ export class Client {
           subscriber.error(event.data.error);
         }
       };
-      addMessageEventListener(this.#connection.port, onMessage);
+      addMessageEventListener(this.target, onMessage);
       if (message) {
-        this.#connection.port.postMessage(
+        this.target.postMessage(
           observeMessage(this.#messageId++, message),
         );
       }
       return () => {
-        this.#connection.port.removeEventListener("message", onMessage);
+        this.target.removeEventListener("message", onMessage);
       };
     });
   }
 
   close() {
-    this.#connection.port.close();
   }
 }

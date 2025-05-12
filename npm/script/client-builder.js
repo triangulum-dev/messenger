@@ -10,12 +10,19 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _ClientBuilder_proxyBuilder, _ClientBuilder_client, _ClientBuilder_built;
+var _ClientBuilder_serviceObject, _ClientBuilder_client, _ClientBuilder_built;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClientBuilder = void 0;
+exports.promiseFunction = promiseFunction;
+exports.observableFunction = observableFunction;
 const client_js_1 = require("./client.js");
-const proxy_builder_js_1 = require("./proxy-builder.js");
 const messages_js_1 = require("./messages.js");
+function promiseFunction() {
+    return { type: "promise" };
+}
+function observableFunction() {
+    return { type: "observable" };
+}
 class ClientBuilder {
     constructor(id, target) {
         Object.defineProperty(this, "id", {
@@ -30,38 +37,33 @@ class ClientBuilder {
             writable: true,
             value: target
         });
-        _ClientBuilder_proxyBuilder.set(this, void 0);
+        _ClientBuilder_serviceObject.set(this, void 0);
         _ClientBuilder_client.set(this, void 0);
         _ClientBuilder_built.set(this, false);
-        __classPrivateFieldSet(this, _ClientBuilder_proxyBuilder, new proxy_builder_js_1.ProxyBuilder(), "f");
-        __classPrivateFieldSet(this, _ClientBuilder_client, new client_js_1.Client(id, target), "f");
+        __classPrivateFieldSet(this, _ClientBuilder_serviceObject, {}, "f");
+        __classPrivateFieldSet(this, _ClientBuilder_client, new client_js_1.Client(target), "f");
     }
-    addPromiseFunction(name) {
-        __classPrivateFieldGet(this, _ClientBuilder_proxyBuilder, "f").addFunction({
-            name,
-            func: (...args) => {
+    add(name, definition) {
+        if (definition.type === "promise") {
+            __classPrivateFieldGet(this, _ClientBuilder_serviceObject, "f")[name] = ((...args) => {
                 const message = (0, messages_js_1.functionCallMessage)(name, args);
                 return __classPrivateFieldGet(this, _ClientBuilder_client, "f").promise(message);
-            },
-        });
-        return this;
-    }
-    addObservableFunction(name) {
-        __classPrivateFieldGet(this, _ClientBuilder_proxyBuilder, "f").addFunction({
-            name,
-            func: (...args) => {
+            });
+        }
+        else {
+            __classPrivateFieldGet(this, _ClientBuilder_serviceObject, "f")[name] = ((...args) => {
                 const message = (0, messages_js_1.observableFunctionCallMessage)(name, args);
                 return __classPrivateFieldGet(this, _ClientBuilder_client, "f").observable(message);
-            },
-        });
+            });
+        }
         return this;
     }
     build() {
         if (__classPrivateFieldGet(this, _ClientBuilder_built, "f"))
             throw new Error("ClientBuilder: already built");
         __classPrivateFieldSet(this, _ClientBuilder_built, true, "f");
-        return __classPrivateFieldGet(this, _ClientBuilder_proxyBuilder, "f").build();
+        return __classPrivateFieldGet(this, _ClientBuilder_serviceObject, "f");
     }
 }
 exports.ClientBuilder = ClientBuilder;
-_ClientBuilder_proxyBuilder = new WeakMap(), _ClientBuilder_client = new WeakMap(), _ClientBuilder_built = new WeakMap();
+_ClientBuilder_serviceObject = new WeakMap(), _ClientBuilder_client = new WeakMap(), _ClientBuilder_built = new WeakMap();

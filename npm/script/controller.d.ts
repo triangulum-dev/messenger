@@ -1,10 +1,10 @@
 import type { Observable } from "rxjs";
-import type { MessageSource } from "./model.js";
+import type { MessageTarget } from "./model.js";
 export declare class Controller {
     #private;
-    readonly id: string;
-    readonly source: MessageSource;
-    constructor(id: string, source: MessageSource);
+    readonly target: MessageTarget;
+    constructor(target: MessageTarget);
+    start(): void;
     onPromise(handler: (data: unknown) => Promise<unknown>): void;
     onObservable(handler: (data: unknown) => Observable<unknown>): void;
     close(): void;

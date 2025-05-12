@@ -2,67 +2,90 @@ import { Client } from "./client.js";
 import type {
   AddFunctionType,
   AddObservableFunctionType,
-  MessageSource,
   MessageTarget,
 } from "./model.js";
-import { ProxyBuilder } from "./proxy-builder.js";
+// import { ProxyBuilder } from "./proxy-builder.ts"; // Removed ProxyBuilder import
 import type { Observable } from "rxjs";
 import {
   functionCallMessage,
   observableFunctionCallMessage,
 } from "./messages.js";
 
+export type PromiseFunctionDef<Args extends unknown[], ReturnType> = {
+  type: "promise";
+  _phantom?: [Args, ReturnType]; // To hold generic types
+};
+
+export type ObservableFunctionDef<Args extends unknown[], ReturnType> = {
+  type: "observable";
+  _phantom?: [Args, ReturnType]; // To hold generic types
+};
+
+export type FunctionDef<Args extends unknown[], ReturnType> =
+  | PromiseFunctionDef<Args, ReturnType>
+  | ObservableFunctionDef<Args, ReturnType>;
+
+export type ExtractArgs<T extends FunctionDef<unknown[], unknown>> = T extends FunctionDef<infer Args, unknown> ? Args : never;
+
+export type ExtractReturnType<T extends FunctionDef<unknown[], unknown>> = T extends FunctionDef<unknown[], infer ReturnType> ? ReturnType : never;
+
+export function promiseFunction<Args extends unknown[], ReturnType>(): PromiseFunctionDef<Args, ReturnType> {
+  return { type: "promise" };
+}
+
+export function observableFunction<Args extends unknown[], ReturnType>(): ObservableFunctionDef<Args, ReturnType> {
+  return { type: "observable" };
+}
+
 export class ClientBuilder<T extends object = object> {
-  #proxyBuilder: ProxyBuilder<T>;
+  #serviceObject: Record<string, ((...args: unknown[]) => Promise<unknown>) | ((...args: unknown[]) => Observable<unknown>)>;
   #client: Client;
   #built = false;
 
   constructor(
     readonly id: string,
-    readonly target: MessageTarget & MessageSource
+    readonly target: MessageTarget
   ) {
-    this.#proxyBuilder = new ProxyBuilder<T>();
-    this.#client = new Client(id, target);
+    this.#serviceObject = {};
+    this.#client = new Client(target);
   }
 
-  addPromiseFunction<Args extends unknown[], ReturnType, Name extends string>(
-    name: Name
-  ): ClientBuilder<T & AddFunctionType<Name, Args, ReturnType>> {
-    this.#proxyBuilder.addFunction<Args, Promise<ReturnType>>({
-      name,
-      func: (...args: Args) => {
-        const message = functionCallMessage(name, args);
-        return this.#client.promise(message);
-      },
-    });
+  add<Name extends string, Def extends FunctionDef<unknown[], unknown>>(
+    name: Name,
+    definition: Def
+  ): ClientBuilder<
+    T &
+      (Def extends { type: "promise" }
+        ? AddFunctionType<Name, ExtractArgs<Def>, ExtractReturnType<Def>>
+        : AddObservableFunctionType<Name, ExtractArgs<Def>, ExtractReturnType<Def>>)
+  > {
+    if (definition.type === "promise") {
+      this.#serviceObject[name] = (
+        (...args: ExtractArgs<Def>): Promise<ExtractReturnType<Def>> => {
+          const message = functionCallMessage(name, args);
+          return this.#client.promise(message);
+        }
+      ) as (...args: unknown[]) => Promise<unknown>; 
+    } else {
+      this.#serviceObject[name] = (
+        (...args: ExtractArgs<Def>): Observable<ExtractReturnType<Def>> => {
+          const message = observableFunctionCallMessage(name, args);
+          return this.#client.observable(message);
+        }
+      ) as (...args: unknown[]) => Observable<unknown>; 
+    }
 
     return this as unknown as ClientBuilder<
-      T & AddFunctionType<Name, Args, ReturnType>
-    >;
-  }
-
-  addObservableFunction<
-    Args extends unknown[],
-    ReturnType,
-    Name extends string
-  >(
-    name: Name
-  ): ClientBuilder<T & AddObservableFunctionType<Name, Args, ReturnType>> {
-    this.#proxyBuilder.addFunction<Args, Observable<ReturnType>>({
-      name,
-      func: (...args: Args) => {
-        const message = observableFunctionCallMessage(name, args);
-        return this.#client.observable(message);
-      },
-    });
-    return this as unknown as ClientBuilder<
-      T & AddObservableFunctionType<Name, Args, ReturnType>
+      T &
+        (Def extends { type: "promise" }
+          ? AddFunctionType<Name, ExtractArgs<Def>, ExtractReturnType<Def>>
+          : AddObservableFunctionType<Name, ExtractArgs<Def>, ExtractReturnType<Def>>)
     >;
   }
 
   build(): T {
     if (this.#built) throw new Error("ClientBuilder: already built");
     this.#built = true;
-    return this.#proxyBuilder.build();
+    return this.#serviceObject as T; 
   }
 }

@@ -1,4 +1,4 @@
-import type { MessageSource } from "./model.js";
+import { MessageTarget } from "./model.js";
 
 export function withResolvers<T>(): {
   resolve: (value: T) => void;
@@ -15,20 +15,20 @@ export function withResolvers<T>(): {
 }
 
 export function addMessageEventListener(
-  source: MessageSource,
+  target: MessageTarget,
   listener: (event: MessageEvent) => void,
 ) {
-  source.addEventListener("message", listener);
-  if (isMessagePort(source)) {
-    source.start();
+  target.addEventListener("message", listener);
+  if (isMessagePort(target)) {
+    target.start();
   }
 }
 
 export function isMessagePort(
-  source: MessageSource,
-): source is MessagePort {
+  target: MessageTarget,
+): target is MessagePort {
   return (
-    typeof (source as MessagePort).start === "function"
+    typeof (target as MessagePort).start === "function"
   );
 }
 

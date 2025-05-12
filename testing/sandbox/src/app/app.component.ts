@@ -1,6 +1,16 @@
 import { Component, signal } from '@angular/core';
-import { ClientBuilder } from '../../../../npm/esm/client-builder';
+import { ClientBuilder, observableFunction, promiseFunction } from '../../../../npm/esm/client-builder';
 import { AsyncPipe, JsonPipe } from '@angular/common';
+
+export function testClient() {
+  return new ClientBuilder(
+    'test-worker',
+    new Worker(new URL('./test-worker.worker', import.meta.url))
+  )
+    .add('time', observableFunction<[], number>())
+    .add('calculateNthPrime', promiseFunction<[number], number>())
+    .build();
+}
 
 @Component({
   selector: 'app-root',
@@ -9,15 +19,7 @@ import { AsyncPipe, JsonPipe } from '@angular/common';
   styleUrl: './app.component.css',
 })
 export class AppComponent {
-  client = new ClientBuilder(
-    'test-worker',
-    new Worker(new URL('./test-worker.worker', import.meta.url))
-  )
-    .addObservableFunction<'time', [], number>('time')
-    .addPromiseFunction<'calculateNthPrime', [number], number>(
-      'calculateNthPrime'
-    )
-    .build();
+  client = testClient();
 
   time$ = this.client.time();
 

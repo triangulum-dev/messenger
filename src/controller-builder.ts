@@ -1,10 +1,41 @@
 import type { Observable } from "rxjs";
 import { Controller } from "./controller.ts";
-import type { AddObservableFunctionType, AddPromiseFunctionType, MessageSource } from "./model.ts";
-import { ProxyBuilder } from "./proxy-builder.ts";
+import type { AddObservableFunctionType, AddPromiseFunctionType, MessageTarget } from "./model.ts";
+import { Message } from "./messages.ts";
+
+export type PromiseHandlerDef<Args extends unknown[], ReturnType> = {
+  type: "promise";
+  handler: (...args: Args) => Promise<ReturnType>;
+};
+
+export type ObservableHandlerDef<Args extends unknown[], ReturnType> = {
+  type: "observable";
+  handler: (...args: Args) => Observable<ReturnType>;
+};
+
+export type HandlerDefUnion = PromiseHandlerDef<unknown[], unknown> | ObservableHandlerDef<unknown[], unknown>;
+
+export type ExtractHandlerArgs<Def extends HandlerDefUnion> =
+  Def extends PromiseHandlerDef<infer Args, unknown> ? Args :
+  Def extends ObservableHandlerDef<infer Args, unknown> ? Args : never;
+
+export type ExtractHandlerReturnType<Def extends HandlerDefUnion> =
+  Def extends PromiseHandlerDef<unknown[], infer Ret> ? Ret :
+  Def extends ObservableHandlerDef<unknown[], infer Ret> ? Ret : never;
+
+export function promiseHandler<Args extends unknown[], ReturnType>(
+  handler: (...args: Args) => Promise<ReturnType>
+): PromiseHandlerDef<Args, ReturnType> {
+  return { type: "promise", handler };
+}
+
+export function observableHandler<Args extends unknown[], ReturnType>(
+  handler: (...args: Args) => Observable<ReturnType>
+): ObservableHandlerDef<Args, ReturnType> {
+  return { type: "observable", handler };
+}
 
 export class ControllerBuilder<T extends object = object> {
-  #proxyBuilder: ProxyBuilder<T>;
   #promiseHandlers: Record<string, (...args: unknown[]) => Promise<unknown>> =
     {};
   #observableHandlers: Record<
@@ -14,65 +45,57 @@ export class ControllerBuilder<T extends object = object> {
   #built = false;
 
   constructor() {
-    this.#proxyBuilder = new ProxyBuilder<T>();
   }
 
-  addPromiseFunctionHandler<
+  add<
     Name extends string,
-    Args extends unknown[],
-    ReturnType,
+    Def extends HandlerDefUnion
   >(
     name: Name,
-    handler: (...args: Args) => Promise<ReturnType>,
-  ): ControllerBuilder<T & AddPromiseFunctionType<Name, Args, ReturnType>> {
-    this.#promiseHandlers[name] = handler as (
-      ...args: unknown[]
-    ) => Promise<unknown>;
-    this.#proxyBuilder.addFunction<Args, Promise<ReturnType>>({
-      name,
-      func: handler,
-    });
+    definition: Def
+  ): ControllerBuilder<
+    T &
+      (Def extends { type: "promise" }
+        ? AddPromiseFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>
+        : AddObservableFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>)
+  > {
+    type Args = ExtractHandlerArgs<Def>;
+    type Ret = ExtractHandlerReturnType<Def>;
+
+    if (definition.type === "promise") {
+      const handler = (definition as PromiseHandlerDef<Args, Ret>).handler;
+      this.#promiseHandlers[name] = handler as (...args: unknown[]) => Promise<unknown>;
+    } else { // definition.type === "observable"
+      const handler = (definition as ObservableHandlerDef<Args, Ret>).handler;
+      this.#observableHandlers[name] = handler as (...args: unknown[]) => Observable<unknown>;
+    }
+
     return this as unknown as ControllerBuilder<
-      T & AddPromiseFunctionType<Name, Args, ReturnType>
+      T &
+        (Def extends { type: "promise" }
+          ? AddPromiseFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>
+          : AddObservableFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>)
     >;
   }
 
-  addObservableFunctionHandler<
-    Name extends string,
-    Args extends unknown[],
-    ReturnType,
-  >(
-    name: Name,
-    handler: (...args: Args) => Observable<ReturnType>,
-  ): ControllerBuilder<T & AddObservableFunctionType<Name, Args, ReturnType>> {
-    this.#observableHandlers[name] = handler as (
-      ...args: unknown[]
-    ) => Observable<unknown>;
-    this.#proxyBuilder.addFunction<Args, Observable<ReturnType>>({
-      name,
-      func: handler,
-    });
-    return this as unknown as ControllerBuilder<
-      T & AddObservableFunctionType<Name, Args, ReturnType>
-    >;
-  }
-
-  build(id: string, source: MessageSource): T {
+  build(id: string, target: MessageTarget): Controller {
     if (this.#built) throw new Error("ControllerBuilder: already built");
     this.#built = true;
-    const controller = new Controller(id, source);
+    const controller = new Controller(target);
+    // deno-lint-ignore no-explicit-any
     controller.onPromise(async ({ function: fn, args }: any) => {
       if (typeof fn !== "string" || !(fn in this.#promiseHandlers)) {
         throw new Error(`Unknown promise function: ${fn}`);
       }
       return await this.#promiseHandlers[fn](...(args ?? []));
     });
+    // deno-lint-ignore no-explicit-any
     controller.onObservable(({ function: fn, args }: any) => {
       if (typeof fn !== "string" || !(fn in this.#observableHandlers)) {
         throw new Error(`Unknown observable function: ${fn}`);
       }
       return this.#observableHandlers[fn](...(args ?? []));
     });
-    return this.#proxyBuilder.build();
+    return controller;
   }
 }

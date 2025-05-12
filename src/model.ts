@@ -1,23 +1,21 @@
-import { Observable } from "rxjs";
+import type { Observable } from "rxjs";
 
-// deno-lint-ignore no-explicit-any
-export type MessageTarget<T = any> = {
+export type MessageTarget = {
   postMessage(
-    message: T,
+    // deno-lint-ignore no-explicit-any
+    message: any,
     transfer?: Transferable[],
   ): void;
-};
-
-// deno-lint-ignore no-explicit-any
-export type MessageSource<T = any> = {
   addEventListener(
     type: "message",
-    listener: (event: MessageEvent<T>) => void,
+    // deno-lint-ignore no-explicit-any
+    listener: (event: MessageEvent<any>) => void,
   ): void;
-
+  
   removeEventListener(
     type: "message",
-    listener: (event: MessageEvent<T>) => void,
+    // deno-lint-ignore no-explicit-any
+    listener: (event: MessageEvent<any>) => void,
   ): void;
 };
 
@@ -60,3 +58,4 @@ export type AddPromiseFunctionType<
 > = {
   [K in Name]: (...args: Args) => Promise<ReturnType>;
 };
+

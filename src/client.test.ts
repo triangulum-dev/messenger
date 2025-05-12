@@ -18,22 +18,15 @@ describe("Client", () => {
   let client: Client;
   let controllerPort: MessagePort;
   let clientPort: MessagePort;
-  let connectionCreateStub: Stub;
 
   beforeEach(() => {
     const channel = new MessageChannel();
     clientPort = channel.port1;
     controllerPort = channel.port2;
-    connectionCreateStub = stub(
-      Connection,
-      "create",
-      (id) => new Connection(id, clientPort),
-    );
-    client = new Client("client-id", controllerPort);
+    client = new Client(clientPort);
   });
 
   afterEach(() => {
-    connectionCreateStub.restore();
     clientPort.close();
     controllerPort.close();
   });

@@ -13,14 +13,14 @@ function withResolvers() {
     });
     return { resolve, reject, promise };
 }
-function addMessageEventListener(source, listener) {
-    source.addEventListener("message", listener);
-    if (isMessagePort(source)) {
-        source.start();
+function addMessageEventListener(target, listener) {
+    target.addEventListener("message", listener);
+    if (isMessagePort(target)) {
+        target.start();
     }
 }
-function isMessagePort(source) {
-    return (typeof source.start === "function");
+function isMessagePort(target) {
+    return (typeof target.start === "function");
 }
 function releaseMicrotask() {
     return new Promise((resolve) => {

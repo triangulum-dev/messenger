@@ -1,10 +1,8 @@
-import { Observable } from "rxjs";
-export type MessageTarget<T = any> = {
-    postMessage(message: T, transfer?: Transferable[]): void;
-};
-export type MessageSource<T = any> = {
-    addEventListener(type: "message", listener: (event: MessageEvent<T>) => void): void;
-    removeEventListener(type: "message", listener: (event: MessageEvent<T>) => void): void;
+import type { Observable } from "rxjs";
+export type MessageTarget = {
+    postMessage(message: any, transfer?: Transferable[]): void;
+    addEventListener(type: "message", listener: (event: MessageEvent<any>) => void): void;
+    removeEventListener(type: "message", listener: (event: MessageEvent<any>) => void): void;
 };
 export type ListenRef = {
     destroy: () => void;

@@ -1,6 +1,6 @@
 import type { ConnectMessage } from "./messages.ts";
 import { connectMessage, MessageType } from "./messages.ts";
-import type { ListenRef, MessageSource, MessageTarget } from "./model.ts";
+import type { ListenRef, MessageTarget } from "./model.ts";
 import { addMessageEventListener } from "./utils.ts";
 
 export class Connection {
@@ -8,7 +8,7 @@ export class Connection {
 
   static create(
     id: string,
-    target: MessageTarget<unknown>,
+    target: MessageTarget,
   ): Connection {
     const channel = new MessageChannel();
     const message: ConnectMessage = connectMessage(id);
@@ -18,7 +18,7 @@ export class Connection {
 
   static listen(
     id: string,
-    source: MessageSource<ConnectMessage>,
+    source: MessageTarget,
     onConnect: (messenger: Connection) => void,
   ): ListenRef {
     const onmessage = (event: MessageEvent) => {

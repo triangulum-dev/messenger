@@ -10,52 +10,24 @@ import { Observable } from "rxjs";
 describe("Controller", () => {
   let clientPort: MessagePort;
   let controllerPort: MessagePort;
-  let onConnect: ((connection: Connection) => void) | undefined;
   let listenStub: { restore: () => void };
 
   beforeEach(() => {
     const channel = new MessageChannel();
     clientPort = channel.port1;
     controllerPort = channel.port2;
-    onConnect = undefined;
-    listenStub = stub(
-      Connection,
-      "listen",
-      (_id, _source, onConnectCallback) => {
-        onConnect = onConnectCallback;
-        return {
-          destroy: () => {},
-        };
-      },
-    );
   });
 
   afterEach(() => {
     clientPort.close();
     controllerPort.close();
-    listenStub.restore();
-  });
-
-  it("should listen for connections", () => {
-    // Arrange
-    const connectionId = "test-id";
-    // Act
-    new Controller(connectionId, controllerPort);
-    // Assert
-    // Use the stub's call arguments directly
-    const stubCalls =
-      (listenStub as unknown as { calls: { args: unknown[] }[] }).calls;
-    expect(stubCalls[0].args[0]).toBe(connectionId);
-    expect(stubCalls[0].args[1]).toBe(controllerPort);
   });
 
   it("should call the promise handler and resolve the result", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const promiseHandler = spy(() => Promise.resolve("result"));
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
     controller.onPromise(promiseHandler);
     const messageId = 3;
     const message = "test message";
@@ -79,12 +51,10 @@ describe("Controller", () => {
 
   it("should call the promise handler and reject on error", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const error = new Error("fail");
     const promiseHandler = spy(() => Promise.reject(error));
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
     controller.onPromise(promiseHandler);
     const messageId = 7;
     const message = "bad message";
@@ -103,19 +73,17 @@ describe("Controller", () => {
     expect(recievedMessageEvent!).toBeDefined();
     expect(recievedMessageEvent!.data).toEqual(
       rejectMessage(messageId, error),
-    )
+    );
   });
 
   it("should call the observable handler and emit values", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const observableHandler = spy(() => new Observable<string>((subscriber) => {
       subscriber.next("value1");
       subscriber.next("value2");
     }));
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
     controller.onObservable(observableHandler);
     const messageId = 10;
     const message = "emit test";
@@ -136,14 +104,12 @@ describe("Controller", () => {
 
   it("should call the observable handler and handle errors", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const error = new Error("observable error");
     const observableHandler = spy(() => new Observable<string>((subscriber) => {
       subscriber.error(error);
     }));
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
     controller.onObservable(observableHandler);
     const messageId = 11;
     const message = "error test";
@@ -162,13 +128,11 @@ describe("Controller", () => {
 
   it("should call the observable handler and complete", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const observableHandler = spy(() => new Observable<string>((subscriber) => {
       subscriber.complete();
     }));
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
     controller.onObservable(observableHandler);
     const messageId = 12;
     const message = "complete test";
@@ -185,26 +149,10 @@ describe("Controller", () => {
     expect(received).toEqual(completeMessage(messageId));
   });
 
-  it("should close all connections when close is called", () => {
-    // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
-    // Spy on port.close
-    const closeSpy = spy(connection.port, "close");
-    // Act
-    controller.close();
-    // Assert
-    assertSpyCall(closeSpy, 0);
-  });
-
   it("should ignore unknown message types", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
+    const controller = new Controller(controllerPort);
+    controller.start();
     // Spy on console.error
     const errorSpy = spy(console, "error");
     // Act
@@ -219,13 +167,11 @@ describe("Controller", () => {
 
   it("should error all active observables on close", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const observableHandler = spy(() => new Observable<string>(() => {
       // don't call complete or error here
     }));
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
     controller.onObservable(observableHandler);
     const messageId = 13;
     const message = "close test";
@@ -244,10 +190,8 @@ describe("Controller", () => {
 
   it("should reject all promises on close", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const messageId = 99;
     const message = "pending promise";
     let received: unknown;
@@ -265,10 +209,8 @@ describe("Controller", () => {
 
   it("should call promise handler when message recieved before handler attached", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const messageId = 14;
     const message = "late handler";
     let recievedMessageEvent: MessageEvent;
@@ -295,10 +237,8 @@ describe("Controller", () => {
 
   it("should call observable handler when message recieved before handler attached", async () => {
     // Arrange
-    const connectionId = "test-id";
-    const controller = new Controller(connectionId, controllerPort);
-    const connection = new Connection(connectionId, controllerPort);
-    onConnect!(connection);
+    const controller = new Controller(controllerPort);
+    controller.start();
     const messageId = 15;
     const message = "late obs handler";
     let received: unknown;
