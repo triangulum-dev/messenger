@@ -43,7 +43,7 @@ export class ControllerBuilder<T extends object = object> {
   > = {};
   #built = false;
 
-  constructor() {
+  constructor(readonly target: MessageTarget) {
   }
 
   add<
@@ -77,10 +77,10 @@ export class ControllerBuilder<T extends object = object> {
     >;
   }
 
-  build(id: string, target: MessageTarget): Controller {
+  build(): Controller {
     if (this.#built) throw new Error("ControllerBuilder: already built");
     this.#built = true;
-    const controller = new Controller(target);
+    const controller = new Controller(this.target);
     // deno-lint-ignore no-explicit-any
     controller.onPromise(async ({ function: fn, args }: any) => {
       if (typeof fn !== "string" || !(fn in this.#promiseHandlers)) {

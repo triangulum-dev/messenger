@@ -36,12 +36,12 @@ describe("ControllerBuilder", () => {
   });
 
   it("should build a controller with a promise handler and resolve", async () => {
-    const builder = new ControllerBuilder()
+    const builder = new ControllerBuilder(controllerPort)
       .add(
         "foo",
         promiseHandler((msg: string) => Promise.resolve(msg + "-ok")),
       );
-    const controller = builder.build("id", controllerPort);
+    const controller = builder.build();
     controller.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
@@ -56,9 +56,9 @@ describe("ControllerBuilder", () => {
 
   it("should build a controller with a promise handler and reject", async () => {
     const error = new Error("fail");
-    const builder = new ControllerBuilder()
+    const builder = new ControllerBuilder(controllerPort)
       .add("foo", promiseHandler(() => Promise.reject(error)));
-    const controller = builder.build("id", controllerPort);
+    const controller = builder.build();
     controller.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
@@ -70,7 +70,7 @@ describe("ControllerBuilder", () => {
   });
 
   it("should build a controller with an observable handler and emit/complete", async () => {
-    const builder = new ControllerBuilder()
+    const builder = new ControllerBuilder(controllerPort)
       .add(
         "stream",
         observableHandler((n: number) =>
@@ -81,7 +81,7 @@ describe("ControllerBuilder", () => {
           })
         ),
       );
-    const controller = builder.build("id", controllerPort);
+    const controller = builder.build();
     controller.start();
     const received: unknown[] = [];
     clientPort.onmessage = (event: MessageEvent) => {
@@ -101,7 +101,7 @@ describe("ControllerBuilder", () => {
 
   it("should build a controller with an observable handler and error", async () => {
     const error = new Error("obs error");
-    const builder = new ControllerBuilder()
+    const builder = new ControllerBuilder(controllerPort)
       .add(
         "stream",
         observableHandler(() =>
@@ -110,7 +110,7 @@ describe("ControllerBuilder", () => {
           })
         ),
       );
-    const controller = builder.build("id", controllerPort);
+    const controller = builder.build();
     controller.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
@@ -124,7 +124,7 @@ describe("ControllerBuilder", () => {
   });
 
   it("should allow chaining multiple add calls and build a composite controller", async () => {
-    const builder = new ControllerBuilder()
+    const builder = new ControllerBuilder(controllerPort)
       .add("foo", promiseHandler((n: number) => Promise.resolve(n + 1)))
       .add(
         "bar",
@@ -136,7 +136,7 @@ describe("ControllerBuilder", () => {
           })
         ),
       );
-    const controller = builder.build("id", controllerPort);
+    const controller = builder.build();
     controller.start();
     // Test promise
     let receivedPromise: unknown;
@@ -163,17 +163,17 @@ describe("ControllerBuilder", () => {
   });
 
   it("should throw if build is called twice", () => {
-    const builder = new ControllerBuilder().add(
+    const builder = new ControllerBuilder(controllerPort).add(
       "foo",
       promiseHandler(() => Promise.resolve()),
     );
-    builder.build("id", controllerPort);
-    expect(() => builder.build("id", controllerPort)).toThrow();
+    builder.build();
+    expect(() => builder.build()).toThrow();
   });
 
   it("should throw for unknown promise/observable function", async () => {
-    const builder = new ControllerBuilder();
-    const controller = builder.build("id", controllerPort);
+    const builder = new ControllerBuilder(controllerPort);
+    const controller = builder.build();
     controller.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
