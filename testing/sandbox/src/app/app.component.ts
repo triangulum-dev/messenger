@@ -1,10 +1,8 @@
 import { Component, signal } from '@angular/core';
-import {
-  ClientBuilder,
-  observableFunction,
-  promiseFunction,
-} from '../../../../npm/esm/client-builder';
+
 import { AsyncPipe, JsonPipe } from '@angular/common';
+import { client } from '@triangulum/messenger';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -13,19 +11,17 @@ import { AsyncPipe, JsonPipe } from '@angular/common';
   styleUrl: './app.component.css',
 })
 export class AppComponent {
-  client = new ClientBuilder(
-    new Worker(new URL('./test-worker.worker', import.meta.url))
-  )
-    .add('time', observableFunction<[], number>())
-    .add('calculateNthPrime', promiseFunction<[number], number>())
-    .build();
+  testclient = client<{
+    time$: (n: number) => Observable<number>;
+    calculateNthPrime: (n: number) => Promise<number>;
+  }>(new Worker(new URL('./test-worker.worker', import.meta.url)));
 
-  time$ = this.client.time();
+  time$ = this.testclient.time$(3);
 
   primes = signal<number[]>([]);
 
   async calculateNthPrime() {
-    const prime = await this.client.calculateNthPrime(
+    const prime = await this.testclient.calculateNthPrime(
       Math.floor(Math.random() * 100000)
     );
     this.primes.update((primse) => [prime, ...primse]);

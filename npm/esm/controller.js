@@ -33,7 +33,7 @@ export class Controller {
             if (data.type === MessageType.Promise) {
                 await __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handlePromiseMessage).call(this, data);
             }
-            else if (data.type === MessageType.Observable) {
+            else if (data.type === MessageType.Subscribe) {
                 __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleObservableMessage).call(this, data);
             }
             else if (data.type === MessageType.Abort) {

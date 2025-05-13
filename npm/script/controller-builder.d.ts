@@ -16,10 +16,11 @@ export declare function promiseHandler<Args extends unknown[], ReturnType>(handl
 export declare function observableHandler<Args extends unknown[], ReturnType>(handler: (...args: Args) => Observable<ReturnType>): ObservableHandlerDef<Args, ReturnType>;
 export declare class ControllerBuilder<T extends object = object> {
     #private;
-    constructor();
+    readonly target: MessageTarget;
+    constructor(target: MessageTarget);
     add<Name extends string, Def extends HandlerDefUnion>(name: Name, definition: Def): ControllerBuilder<T & (Def extends {
         type: "promise";
     } ? AddPromiseFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>> : AddObservableFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>)>;
-    build(id: string, target: MessageTarget): Controller;
+    build(): Controller;
 }
 //# sourceMappingURL=controller-builder.d.ts.map

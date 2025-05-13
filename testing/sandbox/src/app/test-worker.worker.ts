@@ -7,7 +7,7 @@ import {
 } from '@triangulum/messenger';
 import { map, timer } from 'rxjs';
 
-const builder = new ControllerBuilder();
+const builder = new ControllerBuilder(globalThis);
 
 const controller = builder
   .add(
@@ -41,6 +41,6 @@ const controller = builder
       return num;
     })
   )
-  .build('test-worker', globalThis);
+  .build();
 
 controller.start();

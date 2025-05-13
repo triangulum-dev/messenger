@@ -9,8 +9,8 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _ClientBuilder_serviceObject, _ClientBuilder_client, _ClientBuilder_built;
-import { Client } from "./client.js";
+var _ClientBuilder_serviceObject, _ClientBuilder_built;
+import { observable, promise } from "./client.js";
 import { functionCallMessage, observableFunctionCallMessage, } from "./messages.js";
 export function promiseFunction() {
     return { type: "promise" };
@@ -27,22 +27,20 @@ export class ClientBuilder {
             value: target
         });
         _ClientBuilder_serviceObject.set(this, void 0);
-        _ClientBuilder_client.set(this, void 0);
         _ClientBuilder_built.set(this, false);
         __classPrivateFieldSet(this, _ClientBuilder_serviceObject, {}, "f");
-        __classPrivateFieldSet(this, _ClientBuilder_client, new Client(target), "f");
     }
     add(name, definition) {
         if (definition.type === "promise") {
             __classPrivateFieldGet(this, _ClientBuilder_serviceObject, "f")[name] = ((...args) => {
                 const message = functionCallMessage(name, args);
-                return __classPrivateFieldGet(this, _ClientBuilder_client, "f").promise(message);
+                return promise(this.target, message);
             });
         }
         else {
             __classPrivateFieldGet(this, _ClientBuilder_serviceObject, "f")[name] = ((...args) => {
                 const message = observableFunctionCallMessage(name, args);
-                return __classPrivateFieldGet(this, _ClientBuilder_client, "f").observable(message);
+                return observable(this.target, message);
             });
         }
         return this;
@@ -54,4 +52,4 @@ export class ClientBuilder {
         return __classPrivateFieldGet(this, _ClientBuilder_serviceObject, "f");
     }
 }
-_ClientBuilder_serviceObject = new WeakMap(), _ClientBuilder_client = new WeakMap(), _ClientBuilder_built = new WeakMap();
+_ClientBuilder_serviceObject = new WeakMap(), _ClientBuilder_built = new WeakMap();

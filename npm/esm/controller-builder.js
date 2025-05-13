@@ -18,7 +18,13 @@ export function observableHandler(handler) {
     return { type: "observable", handler };
 }
 export class ControllerBuilder {
-    constructor() {
+    constructor(target) {
+        Object.defineProperty(this, "target", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: target
+        });
         _ControllerBuilder_promiseHandlers.set(this, {});
         _ControllerBuilder_observableHandlers.set(this, {});
         _ControllerBuilder_built.set(this, false);
@@ -34,11 +40,11 @@ export class ControllerBuilder {
         }
         return this;
     }
-    build(id, target) {
+    build() {
         if (__classPrivateFieldGet(this, _ControllerBuilder_built, "f"))
             throw new Error("ControllerBuilder: already built");
         __classPrivateFieldSet(this, _ControllerBuilder_built, true, "f");
-        const controller = new Controller(target);
+        const controller = new Controller(this.target);
         // deno-lint-ignore no-explicit-any
         controller.onPromise(async ({ function: fn, args }) => {
             if (typeof fn !== "string" || !(fn in __classPrivateFieldGet(this, _ControllerBuilder_promiseHandlers, "f"))) {

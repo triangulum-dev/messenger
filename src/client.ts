@@ -85,9 +85,10 @@ export function observable<TMessage, TResponse>(
 }
 
 export type Client<T> = {
-  [K in keyof T as T[K] extends (...args: unknown[]) => Observable<unknown>
-    ? (K extends `${string}$` ? K : `${Extract<K, string>}$`)
-    : K
+  [
+    K in keyof T as T[K] extends (...args: unknown[]) => Observable<unknown>
+      ? (K extends `${string}$` ? K : `${Extract<K, string>}$`)
+      : K
   ]: T[K] extends (...args: infer A) => Observable<infer R>
     ? (...args: A) => Observable<R>
     : T[K] extends (...args: infer A) => Promise<infer R>

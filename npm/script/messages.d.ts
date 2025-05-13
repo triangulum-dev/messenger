@@ -3,7 +3,8 @@ export declare enum MessageType {
     Promise = "@triangulum/messenger/v1/messages/promise",
     Resolve = "@triangulum/messenger/v1/messages/resolve",
     Reject = "@triangulum/messenger/v1/messages/reject",
-    Observable = "@triangulum/messenger/v1/messages/observable",
+    Subscribe = "@triangulum/messenger/v1/messages/subscribe",
+    Unsubscribe = "@triangulum/messenger/v1/messages/unsubscribe",
     Emit = "@triangulum/messenger/v1/messages/emit",
     Complete = "@triangulum/messenger/v1/messages/complete",
     Error = "@triangulum/messenger/v1/messages/error",
@@ -40,12 +41,17 @@ export type EmitMessage<T> = {
     data: T;
 };
 export declare function emitMessage<T>(id: string | number, data: T): EmitMessage<T>;
-export type ObserveMessage<T> = {
-    type: MessageType.Observable;
+export type SubscribeMessage<T> = {
+    type: MessageType.Subscribe;
     id: string | number;
     data: T;
 };
-export declare function observeMessage<T>(id: string | number, data: T): ObserveMessage<T>;
+export declare function subscribeMessage<T>(id: string | number, data: T): SubscribeMessage<T>;
+export type UnsubscribeMessage = {
+    type: MessageType.Unsubscribe;
+    id: string | number;
+};
+export declare function unsubscribeMessage(id: string | number): UnsubscribeMessage;
 export type CompleteMessage = {
     type: MessageType.Complete;
     id: string | number;
@@ -73,5 +79,5 @@ export type ObservableFunctionCallMessage = {
     args: unknown[];
 };
 export declare function observableFunctionCallMessage(functionName: string, args: unknown[]): ObservableFunctionCallMessage;
-export type Message = ConnectMessage | PromiseMessage<unknown> | ResolveMessage<unknown> | RejectMessage | ObserveMessage<unknown> | EmitMessage<unknown> | CompleteMessage | ErrorMessage | FunctionCallMessage | ObservableFunctionCallMessage;
+export type Message = ConnectMessage | PromiseMessage<unknown> | ResolveMessage<unknown> | RejectMessage | SubscribeMessage<unknown> | EmitMessage<unknown> | CompleteMessage | ErrorMessage | FunctionCallMessage | ObservableFunctionCallMessage;
 //# sourceMappingURL=messages.d.ts.map

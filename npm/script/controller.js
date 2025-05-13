@@ -36,7 +36,7 @@ class Controller {
             if (data.type === messages_js_1.MessageType.Promise) {
                 await __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handlePromiseMessage).call(this, data);
             }
-            else if (data.type === messages_js_1.MessageType.Observable) {
+            else if (data.type === messages_js_1.MessageType.Subscribe) {
                 __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleObservableMessage).call(this, data);
             }
             else if (data.type === messages_js_1.MessageType.Abort) {

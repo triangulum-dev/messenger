@@ -1,5 +1,5 @@
-import { connectMessage, MessageType } from "./messages.js";
-import { addMessageEventListener } from "./utils.js";
+import { connectMessage, MessageType } from "../messages.js";
+import { addMessageEventListener } from "../utils.js";
 export class Connection {
     constructor(id, port) {
         Object.defineProperty(this, "id", {

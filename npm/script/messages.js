@@ -6,7 +6,8 @@ exports.promiseMessage = promiseMessage;
 exports.resolveMessage = resolveMessage;
 exports.rejectMessage = rejectMessage;
 exports.emitMessage = emitMessage;
-exports.observeMessage = observeMessage;
+exports.subscribeMessage = subscribeMessage;
+exports.unsubscribeMessage = unsubscribeMessage;
 exports.completeMessage = completeMessage;
 exports.errorMessage = errorMessage;
 exports.abortMessage = abortMessage;
@@ -18,7 +19,8 @@ var MessageType;
     MessageType["Promise"] = "@triangulum/messenger/v1/messages/promise";
     MessageType["Resolve"] = "@triangulum/messenger/v1/messages/resolve";
     MessageType["Reject"] = "@triangulum/messenger/v1/messages/reject";
-    MessageType["Observable"] = "@triangulum/messenger/v1/messages/observable";
+    MessageType["Subscribe"] = "@triangulum/messenger/v1/messages/subscribe";
+    MessageType["Unsubscribe"] = "@triangulum/messenger/v1/messages/unsubscribe";
     MessageType["Emit"] = "@triangulum/messenger/v1/messages/emit";
     MessageType["Complete"] = "@triangulum/messenger/v1/messages/complete";
     MessageType["Error"] = "@triangulum/messenger/v1/messages/error";
@@ -60,11 +62,17 @@ function emitMessage(id, data) {
         data,
     };
 }
-function observeMessage(id, data) {
+function subscribeMessage(id, data) {
     return {
-        type: MessageType.Observable,
+        type: MessageType.Subscribe,
         id,
         data,
+    };
+}
+function unsubscribeMessage(id) {
+    return {
+        type: MessageType.Unsubscribe,
+        id,
     };
 }
 function completeMessage(id) {

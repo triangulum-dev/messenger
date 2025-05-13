@@ -24,4 +24,5 @@ export type AddObservableFunctionType<Name extends string, Args extends unknown[
 export type AddPromiseFunctionType<Name extends string, Args extends unknown[], ReturnType> = {
     [K in Name]: (...args: Args) => Promise<ReturnType>;
 };
+export type AnyFn = (...args: any[]) => any;
 //# sourceMappingURL=model.d.ts.map

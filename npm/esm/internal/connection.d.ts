@@ -1,4 +1,4 @@
-import type { ListenRef, MessageTarget } from "./model.js";
+import type { ListenRef, MessageTarget } from "../model.js";
 export declare class Connection {
     readonly id: string;
     readonly port: MessagePort;

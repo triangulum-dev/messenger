@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Connection = void 0;
-const messages_js_1 = require("./messages.js");
-const utils_js_1 = require("./utils.js");
+const messages_js_1 = require("../messages.js");
+const utils_js_1 = require("../utils.js");
 class Connection {
     constructor(id, port) {
         Object.defineProperty(this, "id", {
