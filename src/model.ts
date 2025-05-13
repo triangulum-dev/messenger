@@ -11,7 +11,7 @@ export type MessageTarget = {
     // deno-lint-ignore no-explicit-any
     listener: (event: MessageEvent<any>) => void,
   ): void;
-  
+
   removeEventListener(
     type: "message",
     // deno-lint-ignore no-explicit-any
@@ -59,3 +59,5 @@ export type AddPromiseFunctionType<
   [K in Name]: (...args: Args) => Promise<ReturnType>;
 };
 
+// deno-lint-ignore no-explicit-any
+export type AnyFn = (...args: any[]) => any;

@@ -1,4 +1,4 @@
-import { Client } from "./client.ts";
+import { observable, promise } from "./client.ts";
 import type {
   AddFunctionType,
   AddObservableFunctionType,
@@ -50,14 +50,12 @@ export class ClientBuilder<T extends object = object> {
     | ((...args: unknown[]) => Promise<unknown>)
     | ((...args: unknown[]) => Observable<unknown>)
   >;
-  #client: Client;
   #built = false;
 
   constructor(
     readonly target: MessageTarget,
   ) {
     this.#serviceObject = {};
-    this.#client = new Client(target);
   }
 
   add<Name extends string, Def extends FunctionDef<unknown[], unknown>>(
@@ -77,14 +75,14 @@ export class ClientBuilder<T extends object = object> {
       this.#serviceObject[name] = (
         (...args: ExtractArgs<Def>): Promise<ExtractReturnType<Def>> => {
           const message = functionCallMessage(name, args);
-          return this.#client.promise(message);
+          return promise(this.target, message);
         }
       ) as (...args: unknown[]) => Promise<unknown>;
     } else {
       this.#serviceObject[name] = (
         (...args: ExtractArgs<Def>): Observable<ExtractReturnType<Def>> => {
           const message = observableFunctionCallMessage(name, args);
-          return this.#client.observable(message);
+          return observable(this.target, message);
         }
       ) as (...args: unknown[]) => Observable<unknown>;
     }

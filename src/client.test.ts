@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import type { Stub } from "@std/testing/mock";
 import { stub } from "@std/testing/mock";
 import { assertRejects } from "jsr:@std/assert@^1.0.12/rejects";
-import { Client } from "./client.ts";
+import { client, observable, promise } from "./client.ts";
+import type { Observable } from "rxjs";
 import {
   completeMessage,
   emitMessage,
   errorMessage,
+  functionCallMessage,
+  observableFunctionCallMessage,
   promiseMessage,
   rejectMessage,
   resolveMessage,
@@ -15,8 +18,7 @@ import {
 } from "./messages.ts";
 import { UUID } from "./utils.ts";
 
-describe("Client", () => {
-  let client: Client;
+describe("promise", () => {
   let controllerPort: MessagePort;
   let clientPort: MessagePort;
   let uuidStub: Stub;
@@ -27,7 +29,6 @@ describe("Client", () => {
     const channel = new MessageChannel();
     clientPort = channel.port1;
     controllerPort = channel.port2;
-    client = new Client(clientPort);
     uuidStub = stub(UUID, "create", () => messageId);
   });
 
@@ -43,7 +44,7 @@ describe("Client", () => {
       expect(event.data).toEqual(promiseMessage(messageId, message));
       controllerPort.postMessage(resolveMessage(messageId, "response"));
     };
-    const result = await client.promise<string, string>(message);
+    const result = await promise<string, string>(clientPort, message);
     expect(result).toBe("response");
   });
 
@@ -54,7 +55,28 @@ describe("Client", () => {
       expect(event.data).toEqual(promiseMessage(messageId, message));
       controllerPort.postMessage(rejectMessage(messageId, error));
     };
-    assertRejects(() => client.promise<string, string>(message));
+    assertRejects(() => promise<string, string>(clientPort, message));
+  });
+});
+
+describe("observable", () => {
+  let controllerPort: MessagePort;
+  let clientPort: MessagePort;
+  let uuidStub: Stub;
+  const messageId =
+    "a-b-c-d-e" as `${string}-${string}-${string}-${string}-${string}`;
+
+  beforeEach(() => {
+    const channel = new MessageChannel();
+    clientPort = channel.port1;
+    controllerPort = channel.port2;
+    uuidStub = stub(UUID, "create", () => messageId);
+  });
+
+  afterEach(() => {
+    clientPort.close();
+    controllerPort.close();
+    uuidStub?.restore();
   });
 
   it("should send an observable message and emit values", async () => {
@@ -67,7 +89,7 @@ describe("Client", () => {
     };
     const received: unknown[] = [];
     await new Promise<void>((resolve) => {
-      client.observable<string, string>(message).subscribe({
+      observable<string, string>(clientPort, message).subscribe({
         next: (v) => received.push(v),
         complete: () => {
           expect(received).toEqual(["value1", "value2"]);
@@ -85,12 +107,101 @@ describe("Client", () => {
       controllerPort.postMessage(errorMessage(messageId, error));
     };
     await new Promise<void>((resolve) => {
-      client.observable<string, string>(message).subscribe({
+      observable<string, string>(clientPort, message).subscribe({
         error: (err) => {
           expect(err).toEqual(error);
           resolve();
         },
       });
+    });
+  });
+});
+
+type TestService = {
+  foo: (arg1: string, arg2: number) => Promise<string>;
+  bar$: () => Observable<number>;
+  stream$: (id: string) => Observable<string>;
+};
+
+describe("client", () => {
+  let controllerPort: MessagePort;
+  let clientPort: MessagePort;
+  let uuidStub: Stub;
+  const messageId =
+    "a-b-c-d-e" as `${string}-${string}-${string}-${string}-${string}`;
+
+  beforeEach(() => {
+    const channel = new MessageChannel();
+    clientPort = channel.port1;
+    controllerPort = channel.port2;
+    uuidStub = stub(UUID, "create", () => messageId);
+  });
+
+  afterEach(() => {
+    clientPort.close();
+    controllerPort.close();
+    uuidStub?.restore();
+  });
+
+  it("should call a promise method via proxy", async () => {
+    controllerPort.onmessage = (event: MessageEvent) => {
+      expect(event.data.data).toEqual(
+        functionCallMessage("foo", ["hello", 42]),
+      );
+      controllerPort.postMessage(resolveMessage(messageId, "world"));
+    };
+    const testClient = client<TestService>(clientPort);
+    const result = await testClient.foo(
+      "hello",
+      42,
+    );
+    expect(result).toBe("world");
+  });
+
+  it("should call an observable method via proxy (ending with $)", async () => {
+    controllerPort.onmessage = (event: MessageEvent) => {
+      expect(event.data.data).toEqual(
+        observableFunctionCallMessage("bar", []),
+      );
+      controllerPort.postMessage(emitMessage(messageId, 1));
+      controllerPort.postMessage(emitMessage(messageId, 2));
+      controllerPort.postMessage(completeMessage(messageId));
+    };
+    const testClient = client<TestService>(clientPort);
+    const received: number[] = [];
+    await new Promise<void>((resolve) => {
+      testClient.bar$().subscribe({
+        next: (v: number) => received.push(v),
+        complete: () => {
+          expect(received).toEqual([1, 2]);
+          resolve();
+        },
+      });
+    });
+  });
+
+  it("should call an observable method with args via proxy (ending with $)", async () => {
+    controllerPort.onmessage = (event: MessageEvent) => {
+      expect(event.data.data).toEqual(
+        observableFunctionCallMessage("stream", ["abc"]),
+      );
+      controllerPort.postMessage(emitMessage(messageId, "x"));
+      controllerPort.postMessage(emitMessage(messageId, "y"));
+      controllerPort.postMessage(completeMessage(messageId));
+    };
+    const testClient = client<TestService>(clientPort);
+    const received: string[] = [];
+    await new Promise<void>((resolve) => {
+      testClient.stream$("abc")
+        .subscribe(
+          {
+            next: (v: string) => received.push(v),
+            complete: () => {
+              expect(received).toEqual(["x", "y"]);
+              resolve();
+            },
+          },
+        );
     });
   });
 });
