@@ -13,11 +13,13 @@ interface MessageData {
 export class Controller {
   #connections = new Map<Connection, (event: MessageEvent) => void>();
 
-  #promiseCallback?: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>;
+  #promiseCallback?: (
+    data: unknown,
+    abortSignal: AbortSignal,
+  ) => Promise<unknown>;
 
   #observableCallback?: (data: unknown) => Observable<unknown>;
 
-  // Use a single array as a deque for active requests
   #activeRequests: Array<{
     id: string;
     type: "promise" | "observable";
@@ -28,7 +30,6 @@ export class Controller {
   constructor(
     readonly target: MessageTarget,
   ) {
-    // Listener setup moved to start() method
   }
 
   start() {
@@ -36,7 +37,9 @@ export class Controller {
     addMessageEventListener(this.target, onMessage);
   }
 
-  onPromise(handler: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>) {
+  onPromise(
+    handler: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>,
+  ) {
     this.#promiseCallback = handler;
     // Play any queued promise requests in order
     const pending = this.#activeRequests.filter((r) => r.type === "promise");
@@ -113,7 +116,12 @@ export class Controller {
 
   async #handlePromiseMessage(data: MessageData) {
     const abortController = new AbortController();
-    const req = { id: data.id, type: "promise", data, abortController } as const;
+    const req = {
+      id: data.id,
+      type: "promise",
+      data,
+      abortController,
+    } as const;
     this.#activeRequests.push(req);
     await this.#handlePromise(req);
   }
@@ -124,11 +132,14 @@ export class Controller {
       type: "promise";
       data: MessageData;
       abortController: AbortController;
-    }
+    },
   ) {
     if (!this.#promiseCallback) return;
     try {
-      const result = await this.#promiseCallback(req.data.data, req.abortController.signal);
+      const result = await this.#promiseCallback(
+        req.data.data,
+        req.abortController.signal,
+      );
       this.target.postMessage(resolveMessage(req.id, result));
     } catch (error) {
       try {
@@ -147,20 +158,20 @@ export class Controller {
   }
 
   #handleAbortMessage(data: { id: string }) {
-    const req = this.#activeRequests.find((r) => r.id === data.id && r.type === "promise");
+    const req = this.#activeRequests.find((r) =>
+      r.id === data.id && r.type === "promise"
+    );
     if (req && req.abortController) {
       req.abortController.abort();
     }
   }
 
-  // Handles tracking and activation for observable messages
   #handleObservableMessage(data: MessageData) {
     const req = { id: data.id, type: "observable", data } as const;
     this.#activeRequests.push(req);
     this.#handleObservable(req);
   }
 
-  // Handles the actual observable logic
   #handleObservable(
     req: {
       id: string | number;

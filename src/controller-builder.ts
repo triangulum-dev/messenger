@@ -64,9 +64,12 @@ export class ControllerBuilder<T extends object = object> {
     if (definition.type === "promise") {
       const handler = (definition as PromiseHandlerDef<Args, Ret>).handler;
       this.#promiseHandlers[name] = handler as (...args: unknown[]) => Promise<unknown>;
-    } else { // definition.type === "observable"
+    } else if (definition.type === "observable" ) {
       const handler = (definition as ObservableHandlerDef<Args, Ret>).handler;
       this.#observableHandlers[name] = handler as (...args: unknown[]) => Observable<unknown>;
+    } else {
+      // deno-lint-ignore no-explicit-any
+      throw new Error(`Unknown handler type: ${(definition as any).type}`);
     }
 
     return this as unknown as ControllerBuilder<

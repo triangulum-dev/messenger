@@ -1,4 +1,4 @@
-import { MessageTarget } from "./model.ts";
+import type { MessageTarget } from "./model.ts";
 
 export function withResolvers<T>(): {
   resolve: (value: T) => void;
