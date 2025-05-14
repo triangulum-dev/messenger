@@ -1,12 +1,12 @@
 import { expect } from "@std/expect/expect";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { spy, Stub, stub } from "@std/testing/mock";
+import type { spy as _spy, Stub as _Stub, stub as _stub } from "@std/testing/mock";
 import { Observable } from "rxjs";
 import {
-  ControllerBuilder,
+  AppBuilder,
   observableHandler,
   promiseHandler,
-} from "./controller-builder.ts";
+} from "./app-builder.ts";
 import {
   completeMessage,
   emitMessage,
@@ -20,29 +20,29 @@ import {
 import { releaseMicrotask } from "./utils.ts";
 import { observableFunctionCallMessage } from "./index.ts";
 
-describe("ControllerBuilder", () => {
+describe("AppBuilder", () => {
   let clientPort: MessagePort;
-  let controllerPort: MessagePort;
+  let appPort: MessagePort;
 
   beforeEach(() => {
     const channel = new MessageChannel();
     clientPort = channel.port1;
-    controllerPort = channel.port2;
+    appPort = channel.port2;
   });
 
   afterEach(() => {
     clientPort.close();
-    controllerPort.close();
+    appPort.close();
   });
 
-  it("should build a controller with a promise handler and resolve", async () => {
-    const builder = new ControllerBuilder(controllerPort)
+  it("should build an app context with a promise handler and resolve", async () => {
+    const builder = new AppBuilder(appPort)
       .add(
         "foo",
-        promiseHandler((msg: string) => Promise.resolve(msg + "-ok")),
+        promiseHandler((...args: unknown[]) => Promise.resolve((args[0] as string) + "-ok")),
       );
-    const controller = builder.build();
-    controller.start();
+    const appContext = builder.build();
+    appContext.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;
@@ -54,12 +54,12 @@ describe("ControllerBuilder", () => {
     expect(received).toEqual(resolveMessage(1, "bar-ok"));
   });
 
-  it("should build a controller with a promise handler and reject", async () => {
+  it("should build an app context with a promise handler and reject", async () => {
     const error = new Error("fail");
-    const builder = new ControllerBuilder(controllerPort)
+    const builder = new AppBuilder(appPort)
       .add("foo", promiseHandler(() => Promise.reject(error)));
-    const controller = builder.build();
-    controller.start();
+    const appContext = builder.build();
+    appContext.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;
@@ -69,8 +69,8 @@ describe("ControllerBuilder", () => {
     expect(received).toEqual(rejectMessage(2, error));
   });
 
-  it("should build a controller with an observable handler and emit/complete", async () => {
-    const builder = new ControllerBuilder(controllerPort)
+  it("should build an app context with an observable handler and emit/complete", async () => {
+    const builder = new AppBuilder(appPort)
       .add(
         "stream",
         observableHandler((n: number) =>
@@ -81,8 +81,8 @@ describe("ControllerBuilder", () => {
           })
         ),
       );
-    const controller = builder.build();
-    controller.start();
+    const appContext = builder.build();
+    appContext.start();
     const received: unknown[] = [];
     clientPort.onmessage = (event: MessageEvent) => {
       received.push(event.data);
@@ -99,9 +99,9 @@ describe("ControllerBuilder", () => {
     ]);
   });
 
-  it("should build a controller with an observable handler and error", async () => {
+  it("should build an app context with an observable handler and error", async () => {
     const error = new Error("obs error");
-    const builder = new ControllerBuilder(controllerPort)
+    const builder = new AppBuilder(appPort)
       .add(
         "stream",
         observableHandler(() =>
@@ -110,8 +110,8 @@ describe("ControllerBuilder", () => {
           })
         ),
       );
-    const controller = builder.build();
-    controller.start();
+    const appContext = builder.build();
+    appContext.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;
@@ -123,9 +123,9 @@ describe("ControllerBuilder", () => {
     expect(received).toEqual(errorMessage(4, error));
   });
 
-  it("should allow chaining multiple add calls and build a composite controller", async () => {
-    const builder = new ControllerBuilder(controllerPort)
-      .add("foo", promiseHandler((n: number) => Promise.resolve(n + 1)))
+  it("should allow chaining multiple add calls and build a composite app context", async () => {
+    const builder = new AppBuilder(appPort)
+      .add("foo", promiseHandler((...args: unknown[]) => Promise.resolve((args[0] as number) + 1)))
       .add(
         "bar",
         observableHandler(() =>
@@ -136,8 +136,8 @@ describe("ControllerBuilder", () => {
           })
         ),
       );
-    const controller = builder.build();
-    controller.start();
+    const appContext = builder.build();
+    appContext.start();
     // Test promise
     let receivedPromise: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
@@ -163,7 +163,7 @@ describe("ControllerBuilder", () => {
   });
 
   it("should throw if build is called twice", () => {
-    const builder = new ControllerBuilder(controllerPort).add(
+    const builder = new AppBuilder(appPort).add(
       "foo",
       promiseHandler(() => Promise.resolve()),
     );
@@ -172,9 +172,9 @@ describe("ControllerBuilder", () => {
   });
 
   it("should throw for unknown promise/observable function", async () => {
-    const builder = new ControllerBuilder(controllerPort);
-    const controller = builder.build();
-    controller.start();
+    const builder = new AppBuilder(appPort);
+    const appContext = builder.build();
+    appContext.start();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;

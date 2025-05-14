@@ -10,7 +10,7 @@ interface MessageData {
   data: unknown;
 }
 
-export class Controller {
+export class AppContext {
   #connections = new Map<Connection, (event: MessageEvent) => void>();
 
   #promiseCallback?: (

@@ -1,5 +1,5 @@
 import type { Observable } from "rxjs";
-import { Controller } from "./controller.ts";
+import { AppContext } from "./app-context.ts";
 import type { AddObservableFunctionType, AddPromiseFunctionType, MessageTarget } from "./model.ts";
 
 export type PromiseHandlerDef<Args extends unknown[], ReturnType> = {
@@ -34,17 +34,12 @@ export function observableHandler<Args extends unknown[], ReturnType>(
   return { type: "observable", handler };
 }
 
-export class ControllerBuilder<T extends object = object> {
-  #promiseHandlers: Record<string, (...args: unknown[]) => Promise<unknown>> =
-    {};
-  #observableHandlers: Record<
-    string,
-    (...args: unknown[]) => Observable<unknown>
-  > = {};
+export class AppBuilder<T extends object = object> {
+  #promiseHandlers: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
+  #observableHandlers: Record<string, (...args: unknown[]) => Observable<unknown>> = {};
   #built = false;
 
-  constructor(readonly target: MessageTarget) {
-  }
+  constructor(readonly target: MessageTarget) {}
 
   add<
     Name extends string,
@@ -52,7 +47,7 @@ export class ControllerBuilder<T extends object = object> {
   >(
     name: Name,
     definition: Def
-  ): ControllerBuilder<
+  ): AppBuilder<
     T &
       (Def extends { type: "promise" }
         ? AddPromiseFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>
@@ -64,15 +59,14 @@ export class ControllerBuilder<T extends object = object> {
     if (definition.type === "promise") {
       const handler = (definition as PromiseHandlerDef<Args, Ret>).handler;
       this.#promiseHandlers[name] = handler as (...args: unknown[]) => Promise<unknown>;
-    } else if (definition.type === "observable" ) {
+    } else if (definition.type === "observable") {
       const handler = (definition as ObservableHandlerDef<Args, Ret>).handler;
       this.#observableHandlers[name] = handler as (...args: unknown[]) => Observable<unknown>;
     } else {
-      // deno-lint-ignore no-explicit-any
       throw new Error(`Unknown handler type: ${(definition as any).type}`);
     }
 
-    return this as unknown as ControllerBuilder<
+    return this as unknown as AppBuilder<
       T &
         (Def extends { type: "promise" }
           ? AddPromiseFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>
@@ -80,24 +74,22 @@ export class ControllerBuilder<T extends object = object> {
     >;
   }
 
-  build(): Controller {
-    if (this.#built) throw new Error("ControllerBuilder: already built");
+  build(): AppContext {
+    if (this.#built) throw new Error("AppBuilder: already built");
     this.#built = true;
-    const controller = new Controller(this.target);
-    // deno-lint-ignore no-explicit-any
-    controller.onPromise(async ({ function: fn, args }: any) => {
+    const appContext = new AppContext(this.target);
+    appContext.onPromise(async ({ function: fn, args }: any) => {
       if (typeof fn !== "string" || !(fn in this.#promiseHandlers)) {
         throw new Error(`Unknown promise function: ${fn}`);
       }
       return await this.#promiseHandlers[fn](...(args ?? []));
     });
-    // deno-lint-ignore no-explicit-any
-    controller.onObservable(({ function: fn, args }: any) => {
+    appContext.onObservable(({ function: fn, args }: any) => {
       if (typeof fn !== "string" || !(fn in this.#observableHandlers)) {
         throw new Error(`Unknown observable function: ${fn}`);
       }
       return this.#observableHandlers[fn](...(args ?? []));
     });
-    return controller;
+    return appContext;
   }
 }
