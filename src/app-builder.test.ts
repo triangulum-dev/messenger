@@ -1,10 +1,14 @@
 import { expect } from "@std/expect/expect";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import type { spy as _spy, Stub as _Stub, stub as _stub } from "@std/testing/mock";
-import { Observable } from "rxjs";
 import {
-  AppBuilder,
-} from "./app-builder.ts";
+  spy,
+  type spy as _spy,
+  type Stub as _Stub,
+  type stub as _stub,
+} from "@std/testing/mock";
+import { Observable } from "rxjs";
+import { AppBuilder } from "./app-builder.ts";
+import { Controller, GetObservable, GetPromise } from "./controller.ts";
 import {
   completeMessage,
   emitMessage,
@@ -33,14 +37,14 @@ describe("AppBuilder", () => {
     appPort.close();
   });
 
-  it("should build an app context with a promise handler and resolve", async () => {
-    const builder = new AppBuilder(appPort)
-      .mapPromise(
-        "foo",
-        (...args: unknown[]) => Promise.resolve((args[0] as string) + "-ok"),
-      );
-    const appContext = builder.build();
-    appContext.start();
+  it("should build an app with a promise handler and resolve", async () => {
+    const builder = new AppBuilder(appPort);
+    builder.mapPromise(
+      "foo",
+      (...args: unknown[]) => Promise.resolve((args[0] as string) + "-ok"),
+    );
+    const appRef = builder.build();
+    appRef.run();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;
@@ -52,12 +56,12 @@ describe("AppBuilder", () => {
     expect(received).toEqual(resolveMessage(1, "bar-ok"));
   });
 
-  it("should build an app context with a promise handler and reject", async () => {
+  it("should build an app with a promise handler and reject", async () => {
     const error = new Error("fail");
     const builder = new AppBuilder(appPort)
       .mapPromise("foo", () => Promise.reject(error));
-    const appContext = builder.build();
-    appContext.start();
+    const appRef = builder.build();
+    appRef.run();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;
@@ -67,7 +71,7 @@ describe("AppBuilder", () => {
     expect(received).toEqual(rejectMessage(2, error));
   });
 
-  it("should build an app context with an observable handler and emit/complete", async () => {
+  it("should build an app with an observable handler and emit/complete", async () => {
     const builder = new AppBuilder(appPort)
       .mapObservable(
         "stream",
@@ -78,8 +82,8 @@ describe("AppBuilder", () => {
             subscriber.complete();
           }),
       );
-    const appContext = builder.build();
-    appContext.start();
+    const appRef = builder.build();
+    appRef.run();
     const received: unknown[] = [];
     clientPort.onmessage = (event: MessageEvent) => {
       received.push(event.data);
@@ -96,7 +100,7 @@ describe("AppBuilder", () => {
     ]);
   });
 
-  it("should build an app context with an observable handler and error", async () => {
+  it("should build an app with an observable handler and error", async () => {
     const error = new Error("obs error");
     const builder = new AppBuilder(appPort)
       .mapObservable(
@@ -106,8 +110,8 @@ describe("AppBuilder", () => {
             subscriber.error(error);
           }),
       );
-    const appContext = builder.build();
-    appContext.start();
+    const appRef = builder.build();
+    appRef.run();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;
@@ -119,7 +123,7 @@ describe("AppBuilder", () => {
     expect(received).toEqual(errorMessage(4, error));
   });
 
-  it("should allow chaining multiple add calls and build a composite app context", async () => {
+  it("should allow chaining multiple add calls and build a composite app", async () => {
     const builder = new AppBuilder(appPort)
       .mapPromise("foo", (...args: unknown[]) => Promise.resolve((args[0] as number) + 1))
       .mapObservable(
@@ -131,8 +135,8 @@ describe("AppBuilder", () => {
             subscriber.complete();
           }),
       );
-    const appContext = builder.build();
-    appContext.start();
+    const appRef = builder.build();
+    appRef.run();
     // Test promise
     let receivedPromise: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
@@ -168,8 +172,8 @@ describe("AppBuilder", () => {
 
   it("should throw for unknown promise/observable function", async () => {
     const builder = new AppBuilder(appPort);
-    const appContext = builder.build();
-    appContext.start();
+    const appRef = builder.build();
+    appRef.run();
     let received: unknown;
     clientPort.onmessage = (event: MessageEvent) => {
       received = event.data;
@@ -191,5 +195,89 @@ describe("AppBuilder", () => {
     expect(received).toEqual(
       errorMessage(8, new Error("Unknown observable function: nope")),
     );
+  });
+
+  describe("addController", () => {
+    @Controller({ name: "myClass" })
+    class MyTestController {
+      @GetPromise()
+      myPromise(val: number): Promise<number> {
+        return Promise.resolve(val + 1);
+      }
+
+      @GetObservable()
+      myObservable(val: string): Observable<string> {
+        return new Observable((subscriber) => {
+          subscriber.next(val + "-obs1");
+          subscriber.next(val + "-obs2");
+          subscriber.complete();
+        });
+      }
+
+      // Not decorated, should be ignored
+      ignoredMethod() {
+        return "ignored";
+      }
+    }
+
+    it("should add methods from a controller class and map them correctly", async () => {
+      const controller = new MyTestController();
+      const builder = new AppBuilder(appPort).addController(controller);
+      const appRef = builder.build(); // Renamed to appRef
+      appRef.run(); // Called start on appContext
+
+      // Test promise method
+      let receivedPromise: unknown;
+      clientPort.onmessage = (event: MessageEvent) => {
+        receivedPromise = event.data;
+      };
+      clientPort.postMessage(
+        promiseMessage(10, functionCallMessage("myClass.myPromise", [99])),
+      );
+      await releaseMicrotask();
+      expect(receivedPromise).toEqual(resolveMessage(10, 100));
+
+      // Test observable method
+      const receivedObs: unknown[] = [];
+      clientPort.onmessage = (event: MessageEvent) => {
+        receivedObs.push(event.data);
+      };
+      clientPort.postMessage(
+        subscribeMessage(
+          11,
+          observableFunctionCallMessage("myClass.myObservable", ["test"]),
+        ),
+      );
+      await releaseMicrotask();
+      expect(receivedObs).toEqual([
+        emitMessage(11, "test-obs1"),
+        emitMessage(11, "test-obs2"),
+        completeMessage(11),
+      ]);
+    });
+
+    it("should handle controller with no name", async () => {
+      @Controller({})
+      class NoNameController {
+        @GetPromise()
+        simplePromise() {
+          return Promise.resolve("simple");
+        }
+      }
+      const controller = new NoNameController();
+      const builder = new AppBuilder(appPort).addController(controller);
+      const appRef = builder.build();
+      appRef.run();
+
+      let received: unknown;
+      clientPort.onmessage = (event: MessageEvent) => {
+        received = event.data;
+      };
+      clientPort.postMessage(
+        promiseMessage(12, functionCallMessage("simplePromise", [])),
+      );
+      await releaseMicrotask();
+      expect(received).toEqual(resolveMessage(12, "simple"));
+    });
   });
 });
