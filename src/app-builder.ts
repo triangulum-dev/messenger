@@ -1,90 +1,65 @@
 import type { Observable } from "rxjs";
 import { AppContext } from "./app-context.ts";
-import type { AddObservableFunctionType, AddPromiseFunctionType, MessageTarget } from "./model.ts";
+import type { MessageTarget } from "./model.ts";
 
-export type PromiseHandlerDef<Args extends unknown[], ReturnType> = {
-  type: "promise";
-  handler: (...args: Args) => Promise<ReturnType>;
-};
-
-export type ObservableHandlerDef<Args extends unknown[], ReturnType> = {
-  type: "observable";
-  handler: (...args: Args) => Observable<ReturnType>;
-};
-
-export type HandlerDefUnion = PromiseHandlerDef<any[], any> | ObservableHandlerDef<any[], any>;
-
-export type ExtractHandlerArgs<Def extends HandlerDefUnion> =
-  Def extends PromiseHandlerDef<infer Args, unknown> ? Args :
-  Def extends ObservableHandlerDef<infer Args, unknown> ? Args : never;
-
-export type ExtractHandlerReturnType<Def extends HandlerDefUnion> =
-  Def extends PromiseHandlerDef<unknown[], infer Ret> ? Ret :
-  Def extends ObservableHandlerDef<unknown[], infer Ret> ? Ret : never;
-
-export function promiseHandler<Args extends unknown[], ReturnType>(
-  handler: (...args: Args) => Promise<ReturnType>
-): PromiseHandlerDef<Args, ReturnType> {
-  return { type: "promise", handler };
-}
-
-export function observableHandler<Args extends unknown[], ReturnType>(
-  handler: (...args: Args) => Observable<ReturnType>
-): ObservableHandlerDef<Args, ReturnType> {
-  return { type: "observable", handler };
-}
-
-export class AppBuilder<T extends object = object> {
-  #promiseHandlers: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
-  #observableHandlers: Record<string, (...args: unknown[]) => Observable<unknown>> = {};
+export class AppBuilder {
+  #promiseHandlers: Record<string, (...args: unknown[]) => Promise<unknown>> =
+    {};
+  #observableHandlers: Record<
+    string,
+    (...args: unknown[]) => Observable<unknown>
+  > = {};
   #built = false;
 
   constructor(readonly target: MessageTarget) {}
 
-  add<
+  mapPromise<
     Name extends string,
-    Def extends HandlerDefUnion
+    Args extends unknown[],
+    Ret,
   >(
     name: Name,
-    definition: Def
-  ): AppBuilder<
-    T &
-      (Def extends { type: "promise" }
-        ? AddPromiseFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>
-        : AddObservableFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>)
-  > {
-    type Args = ExtractHandlerArgs<Def>;
-    type Ret = ExtractHandlerReturnType<Def>;
+    handler: (...args: Args) => Promise<Ret>,
+  ): AppBuilder {
+    this.#promiseHandlers[name] = handler as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+    return this;
+  }
 
-    if (definition.type === "promise") {
-      const handler = (definition as PromiseHandlerDef<Args, Ret>).handler;
-      this.#promiseHandlers[name] = handler as (...args: unknown[]) => Promise<unknown>;
-    } else if (definition.type === "observable") {
-      const handler = (definition as ObservableHandlerDef<Args, Ret>).handler;
-      this.#observableHandlers[name] = handler as (...args: unknown[]) => Observable<unknown>;
-    } else {
-      throw new Error(`Unknown handler type: ${(definition as any).type}`);
-    }
-
-    return this as unknown as AppBuilder<
-      T &
-        (Def extends { type: "promise" }
-          ? AddPromiseFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>
-          : AddObservableFunctionType<Name, ExtractHandlerArgs<Def>, ExtractHandlerReturnType<Def>>)
-    >;
+  mapObservable<
+    Name extends string,
+    Args extends unknown[],
+    Ret,
+  >(
+    name: Name,
+    handler: (...args: Args) => Observable<Ret>,
+  ): AppBuilder {
+    this.#observableHandlers[name] = handler as (
+      ...args: unknown[]
+    ) => Observable<unknown>;
+    return this;
   }
 
   build(): AppContext {
     if (this.#built) throw new Error("AppBuilder: already built");
     this.#built = true;
     const appContext = new AppContext(this.target);
-    appContext.onPromise(async ({ function: fn, args }: any) => {
+    appContext.onPromise(async (data: unknown, _abortSignal: AbortSignal) => {
+      const { function: fn, args } = data as {
+        function: string;
+        args: unknown[];
+      };
       if (typeof fn !== "string" || !(fn in this.#promiseHandlers)) {
         throw new Error(`Unknown promise function: ${fn}`);
       }
       return await this.#promiseHandlers[fn](...(args ?? []));
     });
-    appContext.onObservable(({ function: fn, args }: any) => {
+    appContext.onObservable((data: unknown) => {
+      const { function: fn, args } = data as {
+        function: string;
+        args: unknown[];
+      };
       if (typeof fn !== "string" || !(fn in this.#observableHandlers)) {
         throw new Error(`Unknown observable function: ${fn}`);
       }

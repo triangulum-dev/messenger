@@ -4,8 +4,6 @@ import type { spy as _spy, Stub as _Stub, stub as _stub } from "@std/testing/moc
 import { Observable } from "rxjs";
 import {
   AppBuilder,
-  observableHandler,
-  promiseHandler,
 } from "./app-builder.ts";
 import {
   completeMessage,
@@ -37,9 +35,9 @@ describe("AppBuilder", () => {
 
   it("should build an app context with a promise handler and resolve", async () => {
     const builder = new AppBuilder(appPort)
-      .add(
+      .mapPromise(
         "foo",
-        promiseHandler((...args: unknown[]) => Promise.resolve((args[0] as string) + "-ok")),
+        (...args: unknown[]) => Promise.resolve((args[0] as string) + "-ok"),
       );
     const appContext = builder.build();
     appContext.start();
@@ -57,7 +55,7 @@ describe("AppBuilder", () => {
   it("should build an app context with a promise handler and reject", async () => {
     const error = new Error("fail");
     const builder = new AppBuilder(appPort)
-      .add("foo", promiseHandler(() => Promise.reject(error)));
+      .mapPromise("foo", () => Promise.reject(error));
     const appContext = builder.build();
     appContext.start();
     let received: unknown;
@@ -71,15 +69,14 @@ describe("AppBuilder", () => {
 
   it("should build an app context with an observable handler and emit/complete", async () => {
     const builder = new AppBuilder(appPort)
-      .add(
+      .mapObservable(
         "stream",
-        observableHandler((n: number) =>
+        (n: number) =>
           new Observable<string>((subscriber) => {
             subscriber.next("v" + n);
             subscriber.next("w" + n);
             subscriber.complete();
-          })
-        ),
+          }),
       );
     const appContext = builder.build();
     appContext.start();
@@ -102,13 +99,12 @@ describe("AppBuilder", () => {
   it("should build an app context with an observable handler and error", async () => {
     const error = new Error("obs error");
     const builder = new AppBuilder(appPort)
-      .add(
+      .mapObservable(
         "stream",
-        observableHandler(() =>
+        () =>
           new Observable((subscriber) => {
             subscriber.error(error);
-          })
-        ),
+          }),
       );
     const appContext = builder.build();
     appContext.start();
@@ -125,16 +121,15 @@ describe("AppBuilder", () => {
 
   it("should allow chaining multiple add calls and build a composite app context", async () => {
     const builder = new AppBuilder(appPort)
-      .add("foo", promiseHandler((...args: unknown[]) => Promise.resolve((args[0] as number) + 1)))
-      .add(
+      .mapPromise("foo", (...args: unknown[]) => Promise.resolve((args[0] as number) + 1))
+      .mapObservable(
         "bar",
-        observableHandler(() =>
+        () =>
           new Observable((subscriber) => {
             subscriber.next(10);
             subscriber.next(20);
             subscriber.complete();
-          })
-        ),
+          }),
       );
     const appContext = builder.build();
     appContext.start();
@@ -163,9 +158,9 @@ describe("AppBuilder", () => {
   });
 
   it("should throw if build is called twice", () => {
-    const builder = new AppBuilder(appPort).add(
+    const builder = new AppBuilder(appPort).mapPromise(
       "foo",
-      promiseHandler(() => Promise.resolve()),
+      () => Promise.resolve(),
     );
     builder.build();
     expect(() => builder.build()).toThrow();
