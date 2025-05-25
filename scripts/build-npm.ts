@@ -12,7 +12,6 @@ await build({
   test: false,
   compilerOptions: {
     lib: ["DOM", "ES2022"],
-
   },
   package: {
     name: "@triangulum/messenger",

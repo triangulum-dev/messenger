@@ -10,11 +10,12 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
     return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
 };
 var _AppBuilder_promiseHandlers, _AppBuilder_observableHandlers, _AppBuilder_built;
+import * as dntShim from "./_dnt.shims.js";
 import { AppContext } from "./app-context.js";
 import { AppReference } from "./app-reference.js";
 import { CONTROLLER_METHOD_TYPES, CONTROLLER_NAME } from "./controller.js";
 export class AppBuilder {
-    constructor(target) {
+    constructor(target = dntShim.dntGlobalThis) {
         Object.defineProperty(this, "target", {
             enumerable: true,
             configurable: true,

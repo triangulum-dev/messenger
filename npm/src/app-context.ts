@@ -1,5 +1,4 @@
 import type { Observable } from "rxjs";
-import type { Connection } from "./internal/connection.js";
 import { MessageType, rejectMessage, resolveMessage } from "./messages.js";
 import type { MessageTarget } from "./model.js";
 import { addMessageEventListener } from "./utils.js";
@@ -11,7 +10,6 @@ interface MessageData {
 }
 
 export class AppContext {
-  #connections = new Map<Connection, (event: MessageEvent) => void>();
 
   #promiseCallback?: (
     data: unknown,
@@ -64,7 +62,6 @@ export class AppContext {
     for (const req of pending) {
       this.#handleObservable(
         req as {
-          connection: Connection;
           id: string | number;
           type: "observable";
           data: MessageData;
@@ -91,10 +88,6 @@ export class AppContext {
           error: new Error("Connection closed"),
         });
       }
-    }
-    for (const [connection, onMessage] of this.#connections) {
-      connection.port.removeEventListener("message", onMessage);
-      connection.port.close();
     }
   }
 

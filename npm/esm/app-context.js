@@ -9,7 +9,7 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
     return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
 };
-var _AppContext_instances, _AppContext_connections, _AppContext_promiseCallback, _AppContext_observableCallback, _AppContext_activeRequests, _AppContext_onMessage, _AppContext_handlePromiseMessage, _AppContext_handlePromise, _AppContext_handleAbortMessage, _AppContext_handleObservableMessage, _AppContext_handleObservable;
+var _AppContext_instances, _AppContext_promiseCallback, _AppContext_observableCallback, _AppContext_activeRequests, _AppContext_onMessage, _AppContext_handlePromiseMessage, _AppContext_handlePromise, _AppContext_handleAbortMessage, _AppContext_handleObservableMessage, _AppContext_handleObservable;
 import { MessageType, rejectMessage, resolveMessage } from "./messages.js";
 import { addMessageEventListener } from "./utils.js";
 export class AppContext {
@@ -21,7 +21,6 @@ export class AppContext {
             writable: true,
             value: target
         });
-        _AppContext_connections.set(this, new Map());
         _AppContext_promiseCallback.set(this, void 0);
         _AppContext_observableCallback.set(this, void 0);
         _AppContext_activeRequests.set(this, []);
@@ -84,13 +83,9 @@ export class AppContext {
                 });
             }
         }
-        for (const [connection, onMessage] of __classPrivateFieldGet(this, _AppContext_connections, "f")) {
-            connection.port.removeEventListener("message", onMessage);
-            connection.port.close();
-        }
     }
 }
-_AppContext_connections = new WeakMap(), _AppContext_promiseCallback = new WeakMap(), _AppContext_observableCallback = new WeakMap(), _AppContext_activeRequests = new WeakMap(), _AppContext_onMessage = new WeakMap(), _AppContext_instances = new WeakSet(), _AppContext_handlePromiseMessage = async function _AppContext_handlePromiseMessage(data) {
+_AppContext_promiseCallback = new WeakMap(), _AppContext_observableCallback = new WeakMap(), _AppContext_activeRequests = new WeakMap(), _AppContext_onMessage = new WeakMap(), _AppContext_instances = new WeakSet(), _AppContext_handlePromiseMessage = async function _AppContext_handlePromiseMessage(data) {
     const abortController = new AbortController();
     const req = {
         id: data.id,

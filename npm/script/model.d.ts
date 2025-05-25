@@ -1,6 +1,6 @@
 import type { Observable } from "rxjs";
 export type MessageTarget = {
-    postMessage(message: any, transfer?: Transferable[]): void;
+    postMessage(message: any): void;
     addEventListener(type: "message", listener: (event: MessageEvent<any>) => void): void;
     removeEventListener(type: "message", listener: (event: MessageEvent<any>) => void): void;
 };

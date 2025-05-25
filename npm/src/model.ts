@@ -4,7 +4,6 @@ export type MessageTarget = {
   postMessage(
     // deno-lint-ignore no-explicit-any
     message: any,
-    transfer?: Transferable[],
   ): void;
   addEventListener(
     type: "message",

@@ -1,3 +1,4 @@
+import * as dntShim from "./_dnt.shims.js";
 import type { Observable } from "rxjs";
 import { AppContext } from "./app-context.js";
 import type { MessageTarget } from "./model.js";
@@ -13,7 +14,7 @@ export class AppBuilder {
   > = {};
   #built = false;
 
-  constructor(readonly target: MessageTarget) {}
+  constructor(readonly target: MessageTarget = dntShim.dntGlobalThis) {}
 
   mapPromise<
     Name extends string,
