@@ -22,6 +22,9 @@
     "publish": "npm publish --access public --tag next"
   },
   "public": true,
+  "dependencies": {
+    "reflect-metadata": "^0.2.2"
+  },
   "peerDependencies": {
     "rxjs": "^7.8.0"
   },

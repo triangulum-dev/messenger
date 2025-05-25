@@ -1,3 +1,4 @@
+import 'reflect-metadata/lite';
 /**
  * Symbol key for storing the Controller name metadata on a class constructor.
  */
@@ -8,18 +9,26 @@ export declare const CONTROLLER_NAME: unique symbol;
  */
 export declare const CONTROLLER_METHOD_TYPES: unique symbol;
 /**
- * Controller class decorator (modern ECMAScript decorator).
+ * Controller class decorator (experimental decorator with reflect-metadata).
  * Attaches metadata to a class, including an optional name for handler names.
  * This name is used by AppBuilder#addController to namespace mapped promise/observable handlers.
- * The metadata is stored on \`context.metadata\` and becomes accessible
- * via \`YourClass[Symbol.metadata][CONTROLLER_NAME]\`.
+ * The metadata is stored via Reflect.defineMetadata and becomes accessible
+ * via Reflect.getMetadata(CONTROLLER_NAME, YourClass).
  *
- * @param args An object containing an optional string \`name\` for handler names.
- *             If provided, handler names will be generated as \`\${name}.\${functionName}\`.
+ * @param args An object containing an optional string `name` for handler names.
+ *             If provided, handler names will be generated as `${name}.${functionName}`.
  */
 export declare function Controller(args: {
     name?: string;
-}): (targetClass: new (...args: unknown[]) => object, context: ClassDecoratorContext) => void;
-export declare function GetPromise(): (target: object, context: ClassMethodDecoratorContext) => void;
-export declare function GetObservable(): (target: object, context: ClassMethodDecoratorContext) => void;
+}): ClassDecorator;
+/**
+ * Method decorator to mark a method as a promise handler.
+ * Stores the method type in metadata using reflect-metadata.
+ */
+export declare function GetPromise(): MethodDecorator;
+/**
+ * Method decorator to mark a method as an observable handler.
+ * Stores the method type in metadata using reflect-metadata.
+ */
+export declare function GetObservable(): MethodDecorator;
 //# sourceMappingURL=controller.d.ts.map

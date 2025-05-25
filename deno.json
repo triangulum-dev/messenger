@@ -10,13 +10,15 @@
     "@deno/dnt": "jsr:@deno/dnt@^0.41.3",
     "@std/expect": "jsr:@std/expect@^1.0.15",
     "@std/testing": "jsr:@std/testing@^1.0.11",
+    "reflect-metadata": "npm:reflect-metadata@^0.2.2",
     "rxjs": "npm:rxjs@^7.8.2"
   },
   "compilerOptions": {
     "lib": [
       "dom",
       "deno.window",
-      "esnext"
-    ]
+      "es2022"
+    ],
+    "experimentalDecorators": true
   }
 }

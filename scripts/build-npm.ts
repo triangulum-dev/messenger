@@ -11,7 +11,7 @@ await build({
   typeCheck: "both",
   test: false,
   compilerOptions: {
-    lib: ["DOM", "ESNext"],
+    lib: ["DOM", "ES2022"],
 
   },
   package: {
@@ -21,6 +21,9 @@ await build({
     description: "Communicate asynchronously between execution contexts.",
     scripts: {
       "publish": "npm publish --access public --tag next",
+    },
+    "dependencies": {
+      "reflect-metadata": "^0.2.2",
     },
     "peerDependencies": {
       "rxjs": "^7.8.0",

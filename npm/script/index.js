@@ -20,3 +20,5 @@ __exportStar(require("./app-builder.js"), exports);
 __exportStar(require("./app-context.js"), exports);
 __exportStar(require("./messages.js"), exports);
 __exportStar(require("./model.js"), exports);
+__exportStar(require("./controller.js"), exports);
+__exportStar(require("./app-reference.js"), exports);

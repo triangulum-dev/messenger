@@ -38,16 +38,10 @@ class AppBuilder {
     }
     addController(controllerInstance) {
         const constructor = controllerInstance.constructor;
-        const metadata = constructor[Symbol.metadata];
-        if (!metadata) {
-            console.warn(`AppBuilder: Controller class ${constructor.name} does not have metadata. Did you forget to decorate it with @Juole?`);
-            return this;
-        }
-        const name = metadata[controller_js_1.CONTROLLER_NAME];
-        const methodTypes = metadata[controller_js_1.CONTROLLER_METHOD_TYPES];
+        const name = Reflect.getMetadata(controller_js_1.CONTROLLER_NAME, constructor);
+        const methodTypes = Reflect.getMetadata(controller_js_1.CONTROLLER_METHOD_TYPES, constructor);
         if (!methodTypes) {
-            console.warn(`AppBuilder: Controller class ${constructor.name} has no methods decorated with @promise or @observable.`);
-            return this;
+            throw new Error(`AppBuilder: Controller class ${constructor.name} has no methods decorated with @promise or @observable.`);
         }
         for (const methodName in methodTypes) {
             const handler = controllerInstance[methodName];

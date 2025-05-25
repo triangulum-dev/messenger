@@ -29,6 +29,7 @@
     "jsr:@std/testing@^1.0.11": "1.0.11",
     "jsr:@ts-morph/bootstrap@0.24": "0.24.0",
     "jsr:@ts-morph/common@0.24": "0.24.0",
+    "npm:reflect-metadata@~0.2.2": "0.2.2",
     "npm:rxjs@^7.8.2": "7.8.2"
   },
   "jsr": {
@@ -174,6 +175,9 @@
     }
   },
   "npm": {
+    "reflect-metadata@0.2.2": {
+      "integrity": "sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q=="
+    },
     "rxjs@7.8.2": {
       "integrity": "sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==",
       "dependencies": [
@@ -224,6 +228,7 @@
       "jsr:@deno/dnt@~0.41.3",
       "jsr:@std/expect@^1.0.15",
       "jsr:@std/testing@^1.0.11",
+      "npm:reflect-metadata@~0.2.2",
       "npm:rxjs@^7.8.2"
     ]
   }

@@ -44,32 +44,31 @@ export class AppBuilder {
   }
 
   addController(controllerInstance: object): AppBuilder {
-    const constructor = controllerInstance.constructor as { [Symbol.metadata]?: Record<symbol, unknown> } & (new (
+    const constructor = controllerInstance.constructor as (new (
       ...args: unknown[]
     ) => object);
-    const metadata = constructor[Symbol.metadata];
 
-    if (!metadata) {
-      console.warn(
-        `AppBuilder: Controller class ${constructor.name} does not have metadata. Did you forget to decorate it with @Juole?`,
-      );
-      return this;
-    }
-
-    const name = metadata[CONTROLLER_NAME] as string | undefined;
-    const methodTypes = metadata[CONTROLLER_METHOD_TYPES] as
+    const name = Reflect.getMetadata(CONTROLLER_NAME, constructor) as
+      | string
+      | undefined;
+    const methodTypes = Reflect.getMetadata(
+      CONTROLLER_METHOD_TYPES,
+      constructor,
+    ) as
       | Record<string, "promise" | "observable">
       | undefined;
 
     if (!methodTypes) {
-      console.warn(
+      throw new Error(
         `AppBuilder: Controller class ${constructor.name} has no methods decorated with @promise or @observable.`,
       );
-      return this;
     }
 
     for (const methodName in methodTypes) {
-      const handler = (controllerInstance as Record<string, (...args: unknown[]) => unknown>)[methodName];
+      const handler =
+        (controllerInstance as Record<string, (...args: unknown[]) => unknown>)[
+          methodName
+        ];
       if (typeof handler !== "function") {
         console.warn(
           `AppBuilder: Expected method ${methodName} on ${constructor.name} to be a function, but got ${typeof handler}.`,
@@ -81,9 +80,15 @@ export class AppBuilder {
       const handlerName = name ? `${name}.${methodName}` : methodName;
 
       if (methodTypes[methodName] === "promise") {
-        this.mapPromise(handlerName, boundHandler as (...args: unknown[]) => Promise<unknown>);
+        this.mapPromise(
+          handlerName,
+          boundHandler as (...args: unknown[]) => Promise<unknown>,
+        );
       } else if (methodTypes[methodName] === "observable") {
-        this.mapObservable(handlerName, boundHandler as (...args: unknown[]) => Observable<unknown>);
+        this.mapObservable(
+          handlerName,
+          boundHandler as (...args: unknown[]) => Observable<unknown>,
+        );
       }
     }
     return this;
@@ -94,6 +99,10 @@ export class AppBuilder {
     this.#built = true;
     const appContext = new AppContext(this.target);
 
-    return new AppReference(appContext, this.#promiseHandlers, this.#observableHandlers);
+    return new AppReference(
+      appContext,
+      this.#promiseHandlers,
+      this.#observableHandlers,
+    );
   }
 }
