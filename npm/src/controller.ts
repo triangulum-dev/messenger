@@ -1,220 +1,87 @@
-import type { Observable } from "rxjs";
-import type { Connection } from "./internal/connection.js";
-import { MessageType, rejectMessage, resolveMessage } from "./messages.js";
-import type { MessageTarget } from "./model.js";
-import { addMessageEventListener } from "./utils.js";
+/**
+ * Symbol key for storing the Controller name metadata on a class constructor.
+ */
+export const CONTROLLER_NAME = Symbol.for("@triangulum/controller/v1/symbols/name");
 
-// Message data type for Promise and Observable
-interface MessageData {
-  id: string;
-  data: unknown;
+/**
+ * Symbol key for storing the types of Controller-decorated methods (promise or observable)
+ * on a class's metadata. The value will be an object mapping method names to their type.
+ */
+export const CONTROLLER_METHOD_TYPES = Symbol.for("@triangulum/controller/v1/symbols/methodTypes");
+
+/**
+ * Controller class decorator (modern ECMAScript decorator).
+ * Attaches metadata to a class, including an optional name for handler names.
+ * This name is used by AppBuilder#addController to namespace mapped promise/observable handlers.
+ * The metadata is stored on \`context.metadata\` and becomes accessible
+ * via \`YourClass[Symbol.metadata][CONTROLLER_NAME]\`.
+ *
+ * @param args An object containing an optional string \`name\` for handler names.
+ *             If provided, handler names will be generated as \`\${name}.\${functionName}\`.
+ */
+export function Controller(args: { name?: string }): (targetClass: new (...args: unknown[]) => object, context: ClassDecoratorContext) => void {
+  return function <T extends new (...constructorArgs: unknown[]) => object>(
+    _targetClass: T, // Target class constructor, nameed with _ as it's not directly modified
+    context: ClassDecoratorContext<T>
+  ) {
+    // Ensure this decorator is used on a class
+    if (context.kind !== "class") {
+      // This case should ideally be prevented by TypeScript's type system
+      // if the decorator is correctly typed and applied.
+      // However, a runtime check can be a safeguard.
+      console.error("Controller decorator can only be applied to classes.");
+      return;
+    }
+
+    // Modern decorators use context.metadata to store metadata.
+    // The runtime initializes context.metadata to an object.
+    context.metadata[CONTROLLER_NAME] = args.name;
+
+    // No need to return anything (void) as we are augmenting metadata,
+    // not replacing the class or adding initializers that modify the class instance/prototype.
+  };
 }
 
-export class Controller {
-  #connections = new Map<Connection, (event: MessageEvent) => void>();
-
-  #promiseCallback?: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>;
-
-  #observableCallback?: (data: unknown) => Observable<unknown>;
-
-  // Use a single array as a deque for active requests
-  #activeRequests: Array<{
-    id: string;
-    type: "promise" | "observable";
-    data: MessageData;
-    abortController?: AbortController; // Only for promise requests
-  }> = [];
-
-  constructor(
-    readonly target: MessageTarget,
+export function GetPromise(): (target: object, context: ClassMethodDecoratorContext) => void {
+  return function (
+    _target: object, // The prototype of the class for an instance method, or the constructor for a static method
+    context: ClassMethodDecoratorContext
   ) {
-    // Listener setup moved to start() method
-  }
-
-  start() {
-    const onMessage = (message: MessageEvent) => this.#onMessage(message);
-    addMessageEventListener(this.target, onMessage);
-  }
-
-  onPromise(handler: (data: unknown, abortSignal: AbortSignal) => Promise<unknown>) {
-    this.#promiseCallback = handler;
-    // Play any queued promise requests in order
-    const pending = this.#activeRequests.filter((r) => r.type === "promise");
-    for (const req of pending) {
-      this.#handlePromise(
-        req as {
-          id: string;
-          type: "promise";
-          data: MessageData;
-          abortController: AbortController;
-        },
-      );
+    if (context.kind !== "method") {
+      console.error("Promise decorator can only be applied to methods.");
+      return;
     }
-  }
+    if (typeof context.name === "symbol") {
+      console.error("Promise decorator cannot be applied to symbol-named methods.");
+      return;
+    }
 
-  onObservable(
-    handler: (data: unknown) => Observable<unknown>,
-  ) {
-    this.#observableCallback = handler;
-    // Play any queued observable requests in order
-    const pending = this.#activeRequests.filter((r) => r.type === "observable");
-    for (const req of pending) {
-      this.#handleObservable(
-        req as {
-          connection: Connection;
-          id: string | number;
-          type: "observable";
-          data: MessageData;
-        },
-      );
+    const methodName = context.name;
+    if (!context.metadata[CONTROLLER_METHOD_TYPES]) {
+      context.metadata[CONTROLLER_METHOD_TYPES] = {};
     }
-  }
-
-  close() {
-    // Reject/error all active requests in FIFO order before closing the port
-    while (this.#activeRequests.length > 0) {
-      const req = this.#activeRequests.shift();
-      if (!req) break;
-      if (req.type === "promise") {
-        this.target.postMessage({
-          type: MessageType.Reject,
-          id: req.id,
-          error: new Error("Connection closed"),
-        });
-      } else if (req.type === "observable") {
-        this.target.postMessage({
-          type: MessageType.Error,
-          id: req.id,
-          error: new Error("Connection closed"),
-        });
-      }
-    }
-    for (const [connection, onMessage] of this.#connections) {
-      connection.port.removeEventListener("message", onMessage);
-      connection.port.close();
-    }
-  }
-
-  #onMessage = async (
-    // deno-lint-ignore no-explicit-any
-    event: MessageEvent<any>,
-  ) => {
-    const { data } = event;
-    if (data.type === MessageType.Promise) {
-      await this.#handlePromiseMessage(data);
-    } else if (data.type === MessageType.Subscribe) {
-      this.#handleObservableMessage(data);
-    } else if (data.type === MessageType.Abort) {
-      this.#handleAbortMessage(data);
-    } else {
-      console.error("Unknown message type:", data.type);
-    }
+    (context.metadata[CONTROLLER_METHOD_TYPES] as Record<string, string>)[methodName] = "promise";
   };
+}
 
-  async #handlePromiseMessage(data: MessageData) {
-    const abortController = new AbortController();
-    const req = { id: data.id, type: "promise", data, abortController } as const;
-    this.#activeRequests.push(req);
-    await this.#handlePromise(req);
-  }
-
-  async #handlePromise(
-    req: {
-      id: string;
-      type: "promise";
-      data: MessageData;
-      abortController: AbortController;
-    }
+export function GetObservable(): (target: object, context: ClassMethodDecoratorContext) => void {
+  return function (
+    _target: object, // The prototype of the class for an instance method, or the constructor for a static method
+    context: ClassMethodDecoratorContext
   ) {
-    if (!this.#promiseCallback) return;
-    try {
-      const result = await this.#promiseCallback(req.data.data, req.abortController.signal);
-      this.target.postMessage(resolveMessage(req.id, result));
-    } catch (error) {
-      try {
-        this.target.postMessage(rejectMessage(req.id, error));
-      } catch (e) {
-        console.error("Error sending reject message:", e);
-      }
-    } finally {
-      // Remove the first matching promise from the deque (FIFO)
-      const idx = this.#activeRequests.findIndex((r) =>
-        r.id === req.id &&
-        r.type === "promise"
-      );
-      if (idx !== -1) this.#activeRequests.splice(idx, 1);
+    if (context.kind !== "method") {
+      console.error("Observable decorator can only be applied to methods.");
+      return;
     }
-  }
-
-  #handleAbortMessage(data: { id: string }) {
-    const req = this.#activeRequests.find((r) => r.id === data.id && r.type === "promise");
-    if (req && req.abortController) {
-      req.abortController.abort();
+    if (typeof context.name === "symbol") {
+      console.error("Observable decorator cannot be applied to symbol-named methods.");
+      return;
     }
-  }
 
-  // Handles tracking and activation for observable messages
-  #handleObservableMessage(data: MessageData) {
-    const req = { id: data.id, type: "observable", data } as const;
-    this.#activeRequests.push(req);
-    this.#handleObservable(req);
-  }
-
-  // Handles the actual observable logic
-  #handleObservable(
-    req: {
-      id: string | number;
-      type: "observable";
-      data: MessageData;
-    },
-  ) {
-    if (!this.#observableCallback) return;
-    let completed = false;
-    const { id, data } = req;
-    const removeFromActiveRequests = () => {
-      const idx = this.#activeRequests.findIndex((r) =>
-        r.id === id && r.type === "observable"
-      );
-      if (idx !== -1) this.#activeRequests.splice(idx, 1);
-    };
-    const observer = {
-      next: (value: unknown) => {
-        if (!completed) {
-          this.target.postMessage({
-            type: MessageType.Emit,
-            id,
-            data: value,
-          });
-        }
-      },
-      error: (err: unknown) => {
-        if (!completed) {
-          completed = true;
-          this.target.postMessage({
-            type: MessageType.Error,
-            id,
-            error: err,
-          });
-          removeFromActiveRequests();
-        }
-      },
-      complete: () => {
-        if (!completed) {
-          completed = true;
-          this.target.postMessage({ type: MessageType.Complete, id });
-          removeFromActiveRequests();
-        }
-      },
-    };
-    try {
-      const observable = this.#observableCallback(data.data);
-      if (observable && typeof observable.subscribe === "function") {
-        observable.subscribe(observer);
-      } else {
-        throw new Error("Handler did not return an observable");
-      }
-    } catch (err) {
-      observer.error(err);
+    const methodName = context.name;
+    if (!context.metadata[CONTROLLER_METHOD_TYPES]) {
+      context.metadata[CONTROLLER_METHOD_TYPES] = {};
     }
-  }
+    (context.metadata[CONTROLLER_METHOD_TYPES] as Record<string, string>)[methodName] = "observable";
+  };
 }

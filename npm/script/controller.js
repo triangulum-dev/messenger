@@ -1,186 +1,79 @@
 "use strict";
-var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-};
-var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
-    if (kind === "m") throw new TypeError("Private method is not writable");
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
-};
-var _Controller_instances, _Controller_connections, _Controller_promiseCallback, _Controller_observableCallback, _Controller_activeRequests, _Controller_onMessage, _Controller_handlePromiseMessage, _Controller_handlePromise, _Controller_handleAbortMessage, _Controller_handleObservableMessage, _Controller_handleObservable;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Controller = void 0;
-const messages_js_1 = require("./messages.js");
-const utils_js_1 = require("./utils.js");
-class Controller {
-    constructor(target) {
-        _Controller_instances.add(this);
-        Object.defineProperty(this, "target", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: target
-        });
-        _Controller_connections.set(this, new Map());
-        _Controller_promiseCallback.set(this, void 0);
-        _Controller_observableCallback.set(this, void 0);
-        // Use a single array as a deque for active requests
-        _Controller_activeRequests.set(this, []);
-        _Controller_onMessage.set(this, async (
-        // deno-lint-ignore no-explicit-any
-        event) => {
-            const { data } = event;
-            if (data.type === messages_js_1.MessageType.Promise) {
-                await __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handlePromiseMessage).call(this, data);
-            }
-            else if (data.type === messages_js_1.MessageType.Subscribe) {
-                __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleObservableMessage).call(this, data);
-            }
-            else if (data.type === messages_js_1.MessageType.Abort) {
-                __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleAbortMessage).call(this, data);
-            }
-            else {
-                console.error("Unknown message type:", data.type);
-            }
-        });
-        // Listener setup moved to start() method
-    }
-    start() {
-        const onMessage = (message) => __classPrivateFieldGet(this, _Controller_onMessage, "f").call(this, message);
-        (0, utils_js_1.addMessageEventListener)(this.target, onMessage);
-    }
-    onPromise(handler) {
-        __classPrivateFieldSet(this, _Controller_promiseCallback, handler, "f");
-        // Play any queued promise requests in order
-        const pending = __classPrivateFieldGet(this, _Controller_activeRequests, "f").filter((r) => r.type === "promise");
-        for (const req of pending) {
-            __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handlePromise).call(this, req);
-        }
-    }
-    onObservable(handler) {
-        __classPrivateFieldSet(this, _Controller_observableCallback, handler, "f");
-        // Play any queued observable requests in order
-        const pending = __classPrivateFieldGet(this, _Controller_activeRequests, "f").filter((r) => r.type === "observable");
-        for (const req of pending) {
-            __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleObservable).call(this, req);
-        }
-    }
-    close() {
-        // Reject/error all active requests in FIFO order before closing the port
-        while (__classPrivateFieldGet(this, _Controller_activeRequests, "f").length > 0) {
-            const req = __classPrivateFieldGet(this, _Controller_activeRequests, "f").shift();
-            if (!req)
-                break;
-            if (req.type === "promise") {
-                this.target.postMessage({
-                    type: messages_js_1.MessageType.Reject,
-                    id: req.id,
-                    error: new Error("Connection closed"),
-                });
-            }
-            else if (req.type === "observable") {
-                this.target.postMessage({
-                    type: messages_js_1.MessageType.Error,
-                    id: req.id,
-                    error: new Error("Connection closed"),
-                });
-            }
-        }
-        for (const [connection, onMessage] of __classPrivateFieldGet(this, _Controller_connections, "f")) {
-            connection.port.removeEventListener("message", onMessage);
-            connection.port.close();
-        }
-    }
-}
+exports.CONTROLLER_METHOD_TYPES = exports.CONTROLLER_NAME = void 0;
 exports.Controller = Controller;
-_Controller_connections = new WeakMap(), _Controller_promiseCallback = new WeakMap(), _Controller_observableCallback = new WeakMap(), _Controller_activeRequests = new WeakMap(), _Controller_onMessage = new WeakMap(), _Controller_instances = new WeakSet(), _Controller_handlePromiseMessage = async function _Controller_handlePromiseMessage(data) {
-    const abortController = new AbortController();
-    const req = { id: data.id, type: "promise", data, abortController };
-    __classPrivateFieldGet(this, _Controller_activeRequests, "f").push(req);
-    await __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handlePromise).call(this, req);
-}, _Controller_handlePromise = async function _Controller_handlePromise(req) {
-    if (!__classPrivateFieldGet(this, _Controller_promiseCallback, "f"))
-        return;
-    try {
-        const result = await __classPrivateFieldGet(this, _Controller_promiseCallback, "f").call(this, req.data.data, req.abortController.signal);
-        this.target.postMessage((0, messages_js_1.resolveMessage)(req.id, result));
-    }
-    catch (error) {
-        try {
-            this.target.postMessage((0, messages_js_1.rejectMessage)(req.id, error));
+exports.GetPromise = GetPromise;
+exports.GetObservable = GetObservable;
+/**
+ * Symbol key for storing the Controller name metadata on a class constructor.
+ */
+exports.CONTROLLER_NAME = Symbol.for("@triangulum/controller/v1/symbols/name");
+/**
+ * Symbol key for storing the types of Controller-decorated methods (promise or observable)
+ * on a class's metadata. The value will be an object mapping method names to their type.
+ */
+exports.CONTROLLER_METHOD_TYPES = Symbol.for("@triangulum/controller/v1/symbols/methodTypes");
+/**
+ * Controller class decorator (modern ECMAScript decorator).
+ * Attaches metadata to a class, including an optional name for handler names.
+ * This name is used by AppBuilder#addController to namespace mapped promise/observable handlers.
+ * The metadata is stored on \`context.metadata\` and becomes accessible
+ * via \`YourClass[Symbol.metadata][CONTROLLER_NAME]\`.
+ *
+ * @param args An object containing an optional string \`name\` for handler names.
+ *             If provided, handler names will be generated as \`\${name}.\${functionName}\`.
+ */
+function Controller(args) {
+    return function (_targetClass, // Target class constructor, nameed with _ as it's not directly modified
+    context) {
+        // Ensure this decorator is used on a class
+        if (context.kind !== "class") {
+            // This case should ideally be prevented by TypeScript's type system
+            // if the decorator is correctly typed and applied.
+            // However, a runtime check can be a safeguard.
+            console.error("Controller decorator can only be applied to classes.");
+            return;
         }
-        catch (e) {
-            console.error("Error sending reject message:", e);
-        }
-    }
-    finally {
-        // Remove the first matching promise from the deque (FIFO)
-        const idx = __classPrivateFieldGet(this, _Controller_activeRequests, "f").findIndex((r) => r.id === req.id &&
-            r.type === "promise");
-        if (idx !== -1)
-            __classPrivateFieldGet(this, _Controller_activeRequests, "f").splice(idx, 1);
-    }
-}, _Controller_handleAbortMessage = function _Controller_handleAbortMessage(data) {
-    const req = __classPrivateFieldGet(this, _Controller_activeRequests, "f").find((r) => r.id === data.id && r.type === "promise");
-    if (req && req.abortController) {
-        req.abortController.abort();
-    }
-}, _Controller_handleObservableMessage = function _Controller_handleObservableMessage(data) {
-    const req = { id: data.id, type: "observable", data };
-    __classPrivateFieldGet(this, _Controller_activeRequests, "f").push(req);
-    __classPrivateFieldGet(this, _Controller_instances, "m", _Controller_handleObservable).call(this, req);
-}, _Controller_handleObservable = function _Controller_handleObservable(req) {
-    if (!__classPrivateFieldGet(this, _Controller_observableCallback, "f"))
-        return;
-    let completed = false;
-    const { id, data } = req;
-    const removeFromActiveRequests = () => {
-        const idx = __classPrivateFieldGet(this, _Controller_activeRequests, "f").findIndex((r) => r.id === id && r.type === "observable");
-        if (idx !== -1)
-            __classPrivateFieldGet(this, _Controller_activeRequests, "f").splice(idx, 1);
+        // Modern decorators use context.metadata to store metadata.
+        // The runtime initializes context.metadata to an object.
+        context.metadata[exports.CONTROLLER_NAME] = args.name;
+        // No need to return anything (void) as we are augmenting metadata,
+        // not replacing the class or adding initializers that modify the class instance/prototype.
     };
-    const observer = {
-        next: (value) => {
-            if (!completed) {
-                this.target.postMessage({
-                    type: messages_js_1.MessageType.Emit,
-                    id,
-                    data: value,
-                });
-            }
-        },
-        error: (err) => {
-            if (!completed) {
-                completed = true;
-                this.target.postMessage({
-                    type: messages_js_1.MessageType.Error,
-                    id,
-                    error: err,
-                });
-                removeFromActiveRequests();
-            }
-        },
-        complete: () => {
-            if (!completed) {
-                completed = true;
-                this.target.postMessage({ type: messages_js_1.MessageType.Complete, id });
-                removeFromActiveRequests();
-            }
-        },
+}
+function GetPromise() {
+    return function (_target, // The prototype of the class for an instance method, or the constructor for a static method
+    context) {
+        if (context.kind !== "method") {
+            console.error("Promise decorator can only be applied to methods.");
+            return;
+        }
+        if (typeof context.name === "symbol") {
+            console.error("Promise decorator cannot be applied to symbol-named methods.");
+            return;
+        }
+        const methodName = context.name;
+        if (!context.metadata[exports.CONTROLLER_METHOD_TYPES]) {
+            context.metadata[exports.CONTROLLER_METHOD_TYPES] = {};
+        }
+        context.metadata[exports.CONTROLLER_METHOD_TYPES][methodName] = "promise";
     };
-    try {
-        const observable = __classPrivateFieldGet(this, _Controller_observableCallback, "f").call(this, data.data);
-        if (observable && typeof observable.subscribe === "function") {
-            observable.subscribe(observer);
+}
+function GetObservable() {
+    return function (_target, // The prototype of the class for an instance method, or the constructor for a static method
+    context) {
+        if (context.kind !== "method") {
+            console.error("Observable decorator can only be applied to methods.");
+            return;
         }
-        else {
-            throw new Error("Handler did not return an observable");
+        if (typeof context.name === "symbol") {
+            console.error("Observable decorator cannot be applied to symbol-named methods.");
+            return;
         }
-    }
-    catch (err) {
-        observer.error(err);
-    }
-};
+        const methodName = context.name;
+        if (!context.metadata[exports.CONTROLLER_METHOD_TYPES]) {
+            context.metadata[exports.CONTROLLER_METHOD_TYPES] = {};
+        }
+        context.metadata[exports.CONTROLLER_METHOD_TYPES][methodName] = "observable";
+    };
+}

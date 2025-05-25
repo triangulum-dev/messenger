@@ -16,8 +16,7 @@
     "lib": [
       "dom",
       "deno.window",
-      "es2022",
-      "deno.ns"
+      "esnext"
     ]
   }
 }
